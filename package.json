@@ -1,0 +1,53 @@
+{
+  "name": "@scriptivox/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Scriptivox AI transcription — transcribe audio/video from any AI assistant",
+  "keywords": [
+    "mcp",
+    "transcription",
+    "ai",
+    "audio",
+    "video",
+    "scriptivox",
+    "speech-to-text",
+    "model-context-protocol"
+  ],
+  "license": "MIT",
+  "author": "Scriptivox",
+  "homepage": "https://scriptivox.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scriptivox/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/scriptivox/mcp-server/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "scriptivox-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "smithery.yaml"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

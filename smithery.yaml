@@ -1,0 +1,17 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      scriptivoxApiKey:
+        type: string
+        title: Scriptivox API Key
+        description: "Your Scriptivox API key (starts with sk_live_). Get one at https://scriptivox.com"
+    required: []
+  commandFunction:
+    command: npx
+    args:
+      - "-y"
+      - "@scriptivox/mcp-server"
+    env:
+      SCRIPTIVOX_API_KEY: "{{config.scriptivoxApiKey}}"
