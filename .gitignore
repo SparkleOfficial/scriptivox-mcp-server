@@ -3,3 +3,6 @@ dist/
 *.tsbuildinfo
 .env
 .env.*
+key.pem
+mcp-publisher.exe
+mcp-publisher.tar.gz
