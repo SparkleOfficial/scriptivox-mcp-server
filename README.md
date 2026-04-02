@@ -4,6 +4,8 @@ MCP (Model Context Protocol) server for [Scriptivox](https://scriptivox.com) —
 
 Turn any AI assistant into a transcription powerhouse. Transcribe audio and video from URLs with 99% accuracy, speaker diarization, 98+ languages, and word-level timestamps.
 
+<!-- mcp-name: com.scriptivox.www/transcription -->
+
 ## Quick Start
 
 ### Claude Desktop
@@ -31,6 +33,12 @@ claude mcp add scriptivox -- npx -y @scriptivox/mcp-server
 ```
 
 Then set the environment variable `SCRIPTIVOX_API_KEY=sk_live_YOUR_KEY`.
+
+### Docker
+
+```bash
+docker run -e SCRIPTIVOX_API_KEY=sk_live_YOUR_KEY sparkleofficialmain/scriptivox-mcp-server
+```
 
 ### Other MCP Clients
 
@@ -62,8 +70,8 @@ SCRIPTIVOX_API_KEY=sk_live_YOUR_KEY npx -y @scriptivox/mcp-server
 
 | Tool | Description |
 |------|-------------|
-| `transcribe_url` | Transcribe audio/video from a URL — the main feature |
-| `transcribe_status` | Check status of a running transcription |
+| `transcription_url` | Transcribe audio/video from a URL — the main feature |
+| `transcription_status` | Check status of a running transcription |
 | `check_balance` | View your API credit balance |
 
 ## Usage Examples
@@ -94,7 +102,6 @@ The server exposes these MCP resources for AI assistants to read:
 | Environment Variable | Description | Required |
 |---------------------|-------------|----------|
 | `SCRIPTIVOX_API_KEY` | Your API key (`sk_live_...`) | For transcription tools |
-| `SCRIPTIVOX_API_URL` | Custom API base URL | No (defaults to production) |
 
 ## Pricing
 
@@ -107,7 +114,6 @@ The server exposes these MCP resources for AI assistants to read:
 - [Scriptivox](https://scriptivox.com) — Main website
 - [API Documentation](https://scriptivox.com/docs/api-reference) — Full API reference
 - [Dashboard](https://platform.scriptivox.com) — Manage your account
-- [Smithery](https://smithery.ai) — MCP server registry
 
 ## License
 

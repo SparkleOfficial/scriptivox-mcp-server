@@ -2,7 +2,7 @@ import { hasApiKey, NO_API_KEY_MESSAGE } from "../config.js";
 import { apiRequest, ScriptivoxApiError } from "../api/client.js";
 
 export const transcribeStatusDefinition = {
-  name: "transcribe_status",
+  name: "transcription_status",
   description:
     "Check the status of a Scriptivox transcription job. Use this for long-running transcriptions or to retrieve results after a timeout. Requires a configured API key.",
   inputSchema: {

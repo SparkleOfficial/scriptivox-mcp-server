@@ -1,0 +1,8 @@
+src/
+node_modules/
+*.tsbuildinfo
+key.pem
+mcp-publisher*
+.git/
+.gitignore
+.npmignore

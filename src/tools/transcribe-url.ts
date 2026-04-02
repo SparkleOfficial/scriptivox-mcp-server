@@ -2,7 +2,7 @@ import { CONFIG, hasApiKey, NO_API_KEY_MESSAGE } from "../config.js";
 import { apiRequest, ScriptivoxApiError } from "../api/client.js";
 
 export const transcribeUrlDefinition = {
-  name: "transcribe_url",
+  name: "transcription_url",
   description:
     "Transcribe audio or video from a public URL using Scriptivox AI. Supports 100+ languages, speaker diarization, and word-level timestamps. Returns the full transcript. Requires a configured API key.",
   inputSchema: {

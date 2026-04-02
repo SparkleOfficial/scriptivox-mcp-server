@@ -23,7 +23,7 @@ export function handleMeetingNotesPrompt(args: { url: string }) {
 Meeting recording URL: ${args.url}
 
 Steps:
-1. Use the transcribe_url tool with diarize=true to transcribe the recording with speaker identification
+1. Use the transcription_url tool with diarize=true to transcribe the recording with speaker identification
 2. Once you have the transcript, organize it into structured meeting notes with:
    - Meeting summary (2-3 sentences)
    - Key decisions made
@@ -31,7 +31,7 @@ Steps:
    - Discussion topics covered
    - Full transcript with speaker labels
 
-Use the transcribe_url tool now to start the transcription.`,
+Use the transcription_url tool now to start the transcription.`,
         },
       },
     ],

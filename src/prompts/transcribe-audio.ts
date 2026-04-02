@@ -36,7 +36,7 @@ export function handleTranscribeAudioPrompt(args: {
   if (diarize) {
     instruction += `\nPlease identify different speakers in the transcription.`;
   }
-  instruction += `\n\nUse the transcribe_url tool to perform the transcription.`;
+  instruction += `\n\nUse the transcription_url tool to perform the transcription.`;
 
   return {
     messages: [

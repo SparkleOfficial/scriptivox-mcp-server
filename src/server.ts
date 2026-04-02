@@ -107,7 +107,7 @@ export function createServer(): McpServer {
   );
 
   server.tool(
-    "transcribe_url",
+    "transcription_url",
     "Transcribe audio or video from a public URL using Scriptivox AI. Supports 100+ languages, speaker diarization, and word-level timestamps. Returns the full transcript. Requires a configured API key.",
     {
       url: z
@@ -144,12 +144,12 @@ export function createServer(): McpServer {
   );
 
   server.tool(
-    "transcribe_status",
+    "transcription_status",
     "Check the status of a Scriptivox transcription job. Use this for long-running transcriptions or to retrieve results after a timeout. Requires a configured API key.",
     {
       transcription_id: z
         .string()
-        .describe("The transcription ID returned from transcribe_url."),
+        .describe("The transcription ID returned from transcription_url."),
     },
     async (args) => handleTranscribeStatus(args)
   );
