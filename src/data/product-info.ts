@@ -4,12 +4,14 @@ const TOPICS: Record<string, string> = {
 Scriptivox converts audio and video to text with 99% accuracy using
 advanced AI models. Key capabilities:
 
-  - 100+ languages with automatic language detection
+  - 119 languages with automatic language detection (passing the language explicitly is recommended for best accuracy)
   - Speaker diarization (identify who said what)
-  - Word-level timestamps with confidence scores
-  - Supports 30+ audio/video formats (MP3, WAV, MP4, MOV, MKV, etc.)
+  - Word-level timestamps with confidence scores (on by default)
+  - 25 audio/video formats: 10 audio (MP3, WAV, M4A, AAC, OGG, FLAC, WMA, AIFF, Opus, CAF) + 15 video (MP4, MOV, AVI, MKV, WebM, WMV, FLV, M4V, 3GP, MPEG, MTS, OGV, TS, VOB, F4V)
   - Google Drive, Dropbox, and OneDrive link support
-  - Webhook notifications on completion
+  - Webhook notifications on completion (HMAC-signed payloads)
+  - Idempotency-Key support for safe retries
+  - Service status: https://status.scriptivox.com
   - Processing time: typically 1/4 of audio duration
 
 Use cases: podcast transcription, meeting notes, interview analysis,
@@ -80,26 +82,34 @@ Get started: https://scriptivox.com`,
 ==================================================
 RESTful API for programmatic transcription at scale.
 
-  Base URL: https://api.scriptivox.com/v1
-  Auth: API key (sk_live_...) via Authorization header
-  Pricing: $0.20/hour of audio
+  Base URL:   https://api.scriptivox.com/v1
+  Auth:       API key (sk_live_...) via 'Authorization' header (Bearer prefix optional)
+              or 'x-api-key' header
+  Pricing:    $0.20/hour of audio, billed per second
+  Min deposit: $5.00 (~25 hours of audio)
 
   Endpoints:
-    POST /v1/upload      — Get presigned URL for file upload
-    POST /v1/transcribe  — Start transcription (from URL or upload)
-    GET  /v1/transcribe/:id — Get status and results
-    GET  /v1/balance     — Check credit balance
-    POST /v1/deposit     — Create checkout for credits
+    POST   /v1/upload              — Request presigned URL for direct file upload
+    POST   /v1/transcribe          — Start transcription (from URL or upload_id)
+    GET    /v1/transcribe/{id}     — Get status / result (supports ?format=srt|vtt|text)
+    POST   /v1/transcribe/{id}/cancel — Cancel an in-flight transcription
+    DELETE /v1/transcribe/{id}     — Soft-delete a transcription record
+    GET    /v1/transcriptions      — List with status / from / to / limit / cursor filters
+    GET    /v1/balance             — Check credit balance + estimated hours
 
   Features:
-    - URL-based transcription (no upload needed)
-    - Speaker diarization
-    - Word-level alignment
-    - Webhook callbacks
-    - Google Drive/Dropbox/OneDrive links
+    - URL-based transcription (no upload needed) + direct file upload flow
+    - 119 languages
+    - Speaker diarization with optional speaker_count hint
+    - Word-level alignment (on by default; opt out with align: false)
+    - Webhook callbacks (HMAC-signed payloads, no retries)
+    - Idempotency-Key header for safe retries
+    - Caption/transcript export in SRT, VTT, or plain text with segmentation knobs
+    - Google Drive, Dropbox, OneDrive sharing links + direct file URLs
 
-  API docs: https://scriptivox.com/docs/api-reference
-  Dashboard: https://platform.scriptivox.com`,
+  Service health: https://status.scriptivox.com
+  API docs:       https://scriptivox.com/docs/api-reference
+  Dashboard:      https://platform.scriptivox.com`,
 };
 
 export function getProductInfoText(topic?: string): string {

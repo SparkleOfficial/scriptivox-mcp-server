@@ -10,7 +10,7 @@ FREE — $0/month
   - 30 minute max file length
   - Standard processing speed
   - All export formats (TXT, SRT, VTT, JSON)
-  - 100+ language support
+  - 119 language support
 
 PRO — $20/month ($10/month billed yearly)
   - Unlimited transcriptions
@@ -34,7 +34,8 @@ TEAM — $19/user/month ($15/user/month billed yearly)
 API PRICING
 -----------
   $0.20 per hour of audio (pay-as-you-go)
-  Minimum deposit: $5.00
+  Billed per second
+  Minimum deposit: $5.00 (~25 hours of audio)
 
   Cost examples:
     30 seconds  → $0.002
@@ -43,9 +44,15 @@ API PRICING
     1 hour      → $0.20
     10 hours    → $2.00
 
+  Limits:
+    Min audio duration: 1 second
+    Max audio duration: 10 hours
+    Max file size:      5 GB
+
 SIGN UP
 -------
-  Web app: https://scriptivox.com
-  API docs: https://scriptivox.com/docs/api-reference
-  Dashboard: https://platform.scriptivox.com`;
+  Web app:       https://scriptivox.com
+  API docs:      https://scriptivox.com/docs/api-reference
+  Dashboard:     https://platform.scriptivox.com
+  Status page:   https://status.scriptivox.com`;
 }

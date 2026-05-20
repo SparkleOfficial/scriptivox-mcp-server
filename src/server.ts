@@ -9,6 +9,11 @@ import { handleGetApiDocs } from "./tools/get-api-docs.js";
 import { handleCheckBalance } from "./tools/check-balance.js";
 import { handleTranscribeUrl } from "./tools/transcribe-url.js";
 import { handleTranscribeStatus } from "./tools/transcribe-status.js";
+import { handleTranscribeUpload } from "./tools/transcribe-upload.js";
+import { handleTranscribeCancel } from "./tools/transcribe-cancel.js";
+import { handleTranscribeDelete } from "./tools/transcribe-delete.js";
+import { handleListTranscriptions } from "./tools/list-transcriptions.js";
+import { handleExportTranscript } from "./tools/export-transcript.js";
 
 // Resources
 import {
@@ -31,9 +36,9 @@ import { handleMeetingNotesPrompt } from "./prompts/meeting-notes.js";
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "scriptivox",
-    version: "1.0.0",
+    version: "1.1.0",
     description:
-      "AI transcription for any AI assistant. Transcribe audio/video from URLs with 99% accuracy, speaker diarization, 98+ languages, and word-level timestamps.",
+      "AI transcription for any AI assistant. Transcribe audio/video from URLs or local files with 99% accuracy, speaker diarization, 119 languages, and word-level timestamps. Full CRUD on transcriptions: submit, cancel, delete, list, and export as SRT/VTT/text.",
   });
 
   // --- Register Tools ---
@@ -77,13 +82,16 @@ export function createServer(): McpServer {
 
   server.tool(
     "get_api_docs",
-    "Get Scriptivox API documentation. Sections: quickstart, transcribe, result, upload, balance, webhooks, errors. No API key required.",
+    "Get Scriptivox API documentation. Sections: quickstart, transcribe, result, list, cancel, delete, upload, balance, webhooks, errors. No API key required.",
     {
       section: z
         .enum([
           "quickstart",
           "transcribe",
           "result",
+          "list",
+          "cancel",
+          "delete",
           "upload",
           "balance",
           "webhooks",
@@ -107,51 +115,166 @@ export function createServer(): McpServer {
   );
 
   server.tool(
-    "transcription_url",
-    "Transcribe audio or video from a public URL using Scriptivox AI. Supports 100+ languages, speaker diarization, and word-level timestamps. Returns the full transcript. Requires a configured API key.",
+    "transcribe_url",
+    "Transcribe audio or video from a public URL using Scriptivox AI. Supports 119 languages, speaker diarization, and word-level timestamps. RECOMMENDED: always pass the `language` parameter explicitly when you know the audio language — auto-detect has a small failure rate on short clips, code-switched audio, or files starting with music. Requires a configured API key.",
     {
       url: z
         .string()
         .describe(
-          "Public URL to an audio or video file (http/https). Supports Google Drive, Dropbox, and OneDrive sharing links."
+          "Public URL to an audio or video file (http/https). Supports Google Drive, Dropbox, OneDrive sharing links, and direct file URLs."
         ),
       language: z
         .string()
         .optional()
         .describe(
-          'ISO 639-1 language code (e.g. "en", "es", "fr"). Omit for automatic detection.'
+          'ISO 639-1 language code (e.g. "en", "es", "fr"). 119 languages supported. Strongly recommended when you know the language.'
         ),
       diarize: z
         .boolean()
         .optional()
         .describe(
-          "Enable speaker diarization to identify who said what. Default: false."
+          "Enable speaker diarization. Default: false. When true, word-level alignment is automatically enabled regardless of `align`."
         ),
       speaker_count: z
         .number()
         .optional()
         .describe(
-          "Expected number of speakers (1-50). Requires diarize to be true."
+          "Expected number of speakers (1-50). Requires diarize: true. Passing this when known improves diarization accuracy."
         ),
       align: z
         .boolean()
         .optional()
         .describe(
-          "Enable word-level timestamps with confidence scores. Default: false."
+          "Word-level timestamps + confidence scores. Default: true. Pass false to opt out (ignored when diarize: true)."
+        ),
+      webhook_url: z
+        .string()
+        .optional()
+        .describe(
+          "Optional HTTPS URL where transcription.* events will be POSTed (HMAC-signed)."
+        ),
+      idempotency_key: z
+        .string()
+        .optional()
+        .describe(
+          "Optional Idempotency-Key header (up to 255 chars). Same key + same body = same transcription_id."
+        ),
+      await_completed: z
+        .boolean()
+        .optional()
+        .describe(
+          "Default: true. When false, return the transcription_id immediately without polling."
         ),
     },
     async (args) => handleTranscribeUrl(args)
   );
 
   server.tool(
-    "transcription_status",
-    "Check the status of a Scriptivox transcription job. Use this for long-running transcriptions or to retrieve results after a timeout. Requires a configured API key.",
+    "transcribe_status",
+    "Check the status of a Scriptivox transcription job. Use this for long-running transcriptions, after a timeout, or to verify completion. Requires a configured API key.",
     {
       transcription_id: z
         .string()
-        .describe("The transcription ID returned from transcription_url."),
+        .describe("The transcription ID returned from transcribe_url or transcribe_upload."),
     },
     async (args) => handleTranscribeStatus(args)
+  );
+
+  // ── Backward-compatibility aliases for @scriptivox/mcp-server@1.0.x ──
+  // v1.0.4 used the noun-first names `transcription_url` / `transcription_status`.
+  // v1.1.0 renamed them to the verb-first convention (`transcribe_url` /
+  // `transcribe_status`) to match every other tool. Keeping the old names as
+  // pure delegations so existing Claude Desktop / Cursor configs don't break.
+  // Plan: drop these aliases in 2.0.0 once the deprecation has been visible
+  // long enough that telemetry shows no one is still calling them.
+
+  server.tool(
+    "transcription_url",
+    "[DEPRECATED — use transcribe_url instead] Alias kept for backward compatibility with @scriptivox/mcp-server@1.0.x. Will be removed in 2.0.0. Identical behavior to transcribe_url.",
+    {
+      url: z.string().describe("Public URL to an audio/video file (http/https)."),
+      language: z.string().optional().describe('ISO 639-1 language code (e.g. "en"). Strongly recommended when known.'),
+      diarize: z.boolean().optional().describe("Enable speaker diarization. Default: false."),
+      speaker_count: z.number().optional().describe("Expected number of speakers (1-50). Requires diarize: true."),
+      align: z.boolean().optional().describe("Word-level timestamps. Default: true."),
+      webhook_url: z.string().optional().describe("Optional HTTPS webhook URL."),
+      idempotency_key: z.string().optional().describe("Optional Idempotency-Key header."),
+      await_completed: z.boolean().optional().describe("Default: true. When false, return id immediately without polling."),
+    },
+    async (args) => handleTranscribeUrl(args),
+  );
+
+  server.tool(
+    "transcription_status",
+    "[DEPRECATED — use transcribe_status instead] Alias kept for backward compatibility with @scriptivox/mcp-server@1.0.x. Will be removed in 2.0.0. Identical behavior to transcribe_status.",
+    {
+      transcription_id: z.string().describe("The transcription ID."),
+    },
+    async (args) => handleTranscribeStatus(args),
+  );
+
+  server.tool(
+    "transcribe_upload",
+    "Transcribe a LOCAL file by uploading it to Scriptivox. Drives the 3-step upload flow internally. Same options as transcribe_url. Use when the file isn't on a public URL. Max file size 5 GB. Requires a configured API key.",
+    {
+      file_path: z.string().describe("Absolute path to the audio/video file on the local filesystem."),
+      language: z.string().optional().describe("ISO 639-1 language code. Strongly recommended when known."),
+      diarize: z.boolean().optional().describe("Enable speaker diarization. Default: false."),
+      speaker_count: z.number().optional().describe("Expected speakers (1-50). Requires diarize: true."),
+      align: z.boolean().optional().describe("Word-level timestamps. Default: true."),
+      webhook_url: z.string().optional().describe("Optional HTTPS webhook URL."),
+      idempotency_key: z.string().optional().describe("Optional Idempotency-Key header."),
+      await_completed: z.boolean().optional().describe("Default: true. When false, return id without polling."),
+    },
+    async (args) => handleTranscribeUpload(args)
+  );
+
+  server.tool(
+    "transcribe_cancel",
+    "Cancel an in-flight Scriptivox transcription and release any reserved balance. Idempotent. Returns 409 CONFLICT on already-terminal jobs. Requires a configured API key.",
+    {
+      transcription_id: z.string().describe("The transcription ID to cancel (UUID)."),
+    },
+    async (args) => handleTranscribeCancel(args)
+  );
+
+  server.tool(
+    "transcribe_delete",
+    "Soft-delete a Scriptivox transcription record. Idempotent. Returns 409 CONFLICT if the job is still in-flight — cancel first via transcribe_cancel. Requires a configured API key.",
+    {
+      transcription_id: z.string().describe("The transcription ID to delete (UUID)."),
+    },
+    async (args) => handleTranscribeDelete(args)
+  );
+
+  server.tool(
+    "list_transcriptions",
+    "List recent transcriptions for the configured API key, with optional status/date filters and cursor pagination. The full transcript body is omitted — fetch transcribe_status per id to read it. Requires a configured API key.",
+    {
+      status: z.enum(["created", "downloading", "pending", "processing", "completed", "failed"]).optional().describe("Filter by status."),
+      from: z.string().optional().describe("ISO 8601 timestamp lower bound (inclusive)."),
+      to: z.string().optional().describe("ISO 8601 timestamp upper bound (exclusive)."),
+      limit: z.number().optional().describe("Max items per page (1-200, default 50)."),
+      cursor: z.string().optional().describe("Opaque cursor from a previous response."),
+      order: z.enum(["asc", "desc"]).optional().describe("Sort order. Default: desc."),
+    },
+    async (args) => handleListTranscriptions(args)
+  );
+
+  server.tool(
+    "export_transcript",
+    "Export a completed Scriptivox transcript as SRT subtitles, WebVTT subtitles, or plain text. Supports segmentation knobs (max_words, max_chars, max_duration, sentence_aware, include_speakers, strip_chars). Requires the transcription to be in `completed` status. Requires a configured API key.",
+    {
+      transcription_id: z.string().describe("Completed transcription ID (UUID)."),
+      format: z.enum(["srt", "vtt", "text"]).describe("Output format."),
+      max_words: z.number().optional().describe("Max words per caption segment (default 4)."),
+      max_chars: z.number().optional().describe("Max characters per caption segment (default 80)."),
+      max_duration: z.number().optional().describe("Max seconds per caption segment (default 10)."),
+      sentence_aware: z.boolean().optional().describe("Break at sentence boundaries (default true)."),
+      include_speakers: z.enum(["auto", "true", "false"]).optional().describe("Whether to prefix caption lines with speaker tags. 'auto' (default), 'true' (always), 'false' (never)."),
+      strip_chars: z.string().optional().describe("Characters to strip from the transcript before formatting."),
+    },
+    async (args) => handleExportTranscript(args)
   );
 
   // --- Register Resources ---

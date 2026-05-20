@@ -1,8 +1,7 @@
 {
   "name": "@scriptivox/mcp-server",
-  "version": "1.0.4",
-  "mcpName": "com.scriptivox.www/transcription",
-  "description": "MCP server for Scriptivox AI transcription — transcribe audio/video from any AI assistant",
+  "version": "1.1.0",
+  "description": "MCP server for Scriptivox AI transcription — transcribe audio/video from any AI assistant. 119 languages, speaker diarization, word-level timestamps, full CRUD on transcriptions (submit, cancel, delete, list), and SRT/VTT/text export.",
   "keywords": [
     "mcp",
     "transcription",
@@ -18,10 +17,10 @@
   "homepage": "https://scriptivox.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/scriptivox/mcp-server"
+    "url": "https://github.com/SparkleOfficial/scriptivox-mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/scriptivox/mcp-server/issues"
+    "url": "https://github.com/SparkleOfficial/scriptivox-mcp-server/issues"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -31,14 +30,16 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE",
     "smithery.yaml"
   ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "prepublishOnly": "npm run build"
+    "smoke": "tsx scripts/smoke.ts",
+    "integration": "npm run build && tsx scripts/integration.ts",
+    "test": "npm run smoke && npm run integration",
+    "prepublishOnly": "npm run build && npm run test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "tsx": "^4.22.3",
     "typescript": "^5.4.0"
   },
   "engines": {

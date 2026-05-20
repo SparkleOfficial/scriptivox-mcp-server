@@ -2,7 +2,7 @@ import { hasApiKey, NO_API_KEY_MESSAGE } from "../config.js";
 import { apiRequest, ScriptivoxApiError } from "../api/client.js";
 
 export const transcribeStatusDefinition = {
-  name: "transcription_status",
+  name: "transcribe_status",
   description:
     "Check the status of a Scriptivox transcription job. Use this for long-running transcriptions or to retrieve results after a timeout. Requires a configured API key.",
   inputSchema: {
@@ -19,12 +19,13 @@ export const transcribeStatusDefinition = {
 
 interface TranscribeStatusResponse {
   id: string;
-  status: "created" | "downloading" | "processing" | "completed" | "failed";
+  // Includes `pending` — upload-flow rows wait here until the duration probe finishes.
+  status: "created" | "downloading" | "pending" | "processing" | "completed" | "failed";
   audio_duration_seconds?: number;
   language?: string;
   cost_cents?: number;
-  error_code?: string;
-  error_message?: string;
+  // Live API returns failures as a nested object, not flat fields.
+  error?: { code: string; message: string };
   progress?: string;
   result?: {
     full_transcript: string;
@@ -86,7 +87,7 @@ export async function handleTranscribeStatus(args: {
     }
 
     if (result.status === "completed" && result.result) {
-      text += `\n  Cost: $${((result.cost_cents || 0) / 100).toFixed(3)}`;
+      text += `\n  Cost: ${formatCost(result.cost_cents)}`;
       text += `\n\n--- Transcript ---\n\n`;
 
       if (result.result.utterances && result.result.utterances.length > 0) {
@@ -104,8 +105,13 @@ export async function handleTranscribeStatus(args: {
     }
 
     if (result.status === "failed") {
-      text += `\n  Error: ${result.error_code || "UNKNOWN"}`;
-      text += `\n  Message: ${result.error_message || "An unknown error occurred."}`;
+      // Live API shape: error = { code, message } (nested). The old code read
+      // result.error_code / result.error_message — fields that don't exist —
+      // and always showed "UNKNOWN" / "An unknown error occurred." for every
+      // real failure.
+      text += `\n  Error: ${result.error?.code || "UNKNOWN"}`;
+      text += `\n  Message: ${result.error?.message || "An unknown error occurred."}`;
+      text += `\n\nIf this looks like a service-side issue, check status.scriptivox.com.`;
     }
 
     return { content: [{ type: "text" as const, text }] };
@@ -119,4 +125,14 @@ export async function handleTranscribeStatus(args: {
       isError: true,
     };
   }
+}
+
+/**
+ * Format cost_cents (actual cents with up to 4 decimals, per the API's
+ * roundForApi helper) as a customer-facing dollar string.
+ */
+function formatCost(costCents: number | null | undefined): string {
+  if (costCents == null) return "N/A";
+  const dollars = costCents / 100;
+  return `$${dollars.toFixed(4)}`;
 }

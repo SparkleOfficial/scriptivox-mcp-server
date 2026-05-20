@@ -2,36 +2,51 @@ import { CONFIG, hasApiKey, NO_API_KEY_MESSAGE } from "../config.js";
 import { apiRequest, ScriptivoxApiError } from "../api/client.js";
 
 export const transcribeUrlDefinition = {
-  name: "transcription_url",
+  name: "transcribe_url",
   description:
-    "Transcribe audio or video from a public URL using Scriptivox AI. Supports 100+ languages, speaker diarization, and word-level timestamps. Returns the full transcript. Requires a configured API key.",
+    "Transcribe audio or video from a public URL using Scriptivox AI. Supports 119 languages, speaker diarization, and word-level timestamps. Returns the full transcript. Requires a configured API key. RECOMMENDED: always pass the `language` parameter explicitly when you know the audio language — auto-detection works but can mis-route short clips, code-switched audio, or files starting with music.",
   inputSchema: {
     type: "object" as const,
     properties: {
       url: {
         type: "string",
         description:
-          "Public URL to an audio or video file (http/https). Supports Google Drive, Dropbox, and OneDrive sharing links.",
+          "Public URL to an audio or video file (http/https). Supports Google Drive, Dropbox, OneDrive sharing links, and direct file URLs. 25 formats supported (10 audio, 15 video).",
       },
       language: {
         type: "string",
         description:
-          'ISO 639-1 language code (e.g. "en", "es", "fr"). Omit for automatic detection.',
+          'ISO 639-1 language code (e.g. "en", "es", "fr", "ja", "hi"). 119 languages supported. Strongly recommended: pass this when you know the audio language. Omit only if you want the model to auto-detect (works for most cases but has a small failure rate on edge cases).',
       },
       diarize: {
         type: "boolean",
         description:
-          "Enable speaker diarization to identify who said what. Default: false.",
+          "Enable speaker diarization to identify who said what. Default: false. When true, word-level timestamps (`align`) are always enabled regardless of the `align` parameter.",
       },
       speaker_count: {
         type: "number",
         description:
-          "Expected number of speakers (1-50). Requires diarize to be true.",
+          "Expected number of speakers (1-50). Requires `diarize: true`. Passing this when you know the number noticeably improves diarization accuracy.",
       },
       align: {
         type: "boolean",
         description:
-          "Enable word-level timestamps with confidence scores. Default: false.",
+          "Enable word-level timestamps with confidence scores. Default: true. Pass `align: false` to opt out (ignored when `diarize: true` — alignment is required for speaker assignment).",
+      },
+      webhook_url: {
+        type: "string",
+        description:
+          "Optional. HTTPS URL where Scriptivox will POST `transcription.processing` and `transcription.completed`/`transcription.failed` events. Payloads are signed with HMAC-SHA256(api_key) in the `X-Scriptivox-Signature` header. Fire-and-forget — no retries.",
+      },
+      idempotency_key: {
+        type: "string",
+        description:
+          "Optional. Up to 255 chars. Retrying the same key with the same body returns the same transcription_id without creating a duplicate. Reusing the key with a different body returns 422 IDEMPOTENCY_KEY_CONFLICT.",
+      },
+      await_completed: {
+        type: "boolean",
+        description:
+          "Default: true. When true, the tool polls until the transcription is `completed` or `failed` (10-min ceiling). When false, returns immediately with the `transcription_id` — caller uses `transcribe_status` to poll.",
       },
     },
     required: ["url"],
@@ -54,12 +69,14 @@ interface Utterance {
 
 interface TranscribeResultResponse {
   id: string;
-  status: "created" | "downloading" | "processing" | "completed" | "failed";
+  // Includes `pending` — added when upload-flow row waits for the duration probe.
+  status: "created" | "downloading" | "pending" | "processing" | "completed" | "failed";
   audio_duration_seconds?: number;
   language?: string;
   cost_cents?: number;
-  error_code?: string;
-  error_message?: string;
+  // Live API returns failures as a nested object, not flat fields.
+  // The earlier flat shape was wrong and silently produced "UNKNOWN" everywhere.
+  error?: { code: string; message: string };
   progress?: string;
   result?: {
     full_transcript: string;
@@ -78,6 +95,9 @@ export async function handleTranscribeUrl(args: {
   diarize?: boolean;
   speaker_count?: number;
   align?: boolean;
+  webhook_url?: string;
+  idempotency_key?: string;
+  await_completed?: boolean;
 }) {
   if (!hasApiKey()) {
     return {
@@ -114,16 +134,25 @@ export async function handleTranscribeUrl(args: {
 
   try {
     // Start transcription
+    // Note: only include `diarize`/`align` when explicitly set — the API has
+    // its own defaults (diarize=false, align=true) and we shouldn't override
+    // them just because the caller didn't pass the param.
     const body: Record<string, unknown> = { url: args.url };
     if (args.language) body.language = args.language;
-    if (args.diarize) body.diarize = args.diarize;
-    if (args.speaker_count) body.speaker_count = args.speaker_count;
-    if (args.align) body.align = args.align;
+    if (args.diarize !== undefined) body.diarize = args.diarize;
+    if (args.speaker_count !== undefined) body.speaker_count = args.speaker_count;
+    if (args.align !== undefined) body.align = args.align;
+    if (args.webhook_url) body.webhook_url = args.webhook_url;
+
+    // Idempotency-Key is a header, not a body field.
+    const headers: Record<string, string> = {};
+    if (args.idempotency_key) headers["Idempotency-Key"] = args.idempotency_key;
 
     const createResult = await apiRequest<TranscribeCreateResponse>(
       "POST",
       "/transcribe",
-      body
+      body,
+      headers,
     );
 
     const transcriptionId = createResult.id;
@@ -138,6 +167,21 @@ export async function handleTranscribeUrl(args: {
           },
         ],
         isError: true,
+      };
+    }
+
+    // Caller opted out of polling — return the ID and let them poll via
+    // transcribe_status. Useful for agents that don't want to block on a job
+    // that might take minutes (or when a webhook_url is set, which obsoletes
+    // the need to poll at all).
+    if (args.await_completed === false) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Transcription accepted.\n\nTranscription ID: ${transcriptionId}\n\nUse the transcribe_status tool to check progress${args.webhook_url ? `, or wait for the webhook at ${args.webhook_url}` : ""}.`,
+          },
+        ],
       };
     }
 
@@ -156,18 +200,21 @@ export async function handleTranscribeUrl(args: {
           content: [
             {
               type: "text" as const,
-              text: formatTranscript(result),
+              text: formatTranscript(result, transcriptionId),
             },
           ],
         };
       }
 
       if (result.status === "failed") {
+        // Live API shape: error = { code, message } (nested), not flat.
+        const code = result.error?.code || "UNKNOWN";
+        const message = result.error?.message || "An unknown error occurred.";
         return {
           content: [
             {
               type: "text" as const,
-              text: `Transcription failed.\n\nError: ${result.error_code || "UNKNOWN"}\n${result.error_message || "An unknown error occurred."}\n\nTranscription ID: ${transcriptionId}`,
+              text: `Transcription failed.\n\nError: ${code}\n${message}\n\nTranscription ID: ${transcriptionId}\n\nIf this looks like a service issue, check status.scriptivox.com.`,
             },
           ],
           isError: true,
@@ -198,15 +245,14 @@ export async function handleTranscribeUrl(args: {
   }
 }
 
-function formatTranscript(result: TranscribeResultResponse): string {
+function formatTranscript(result: TranscribeResultResponse, transcriptionId: string): string {
   const r = result.result!;
   const duration = formatDuration(r.duration_seconds);
-  const costStr = result.cost_cents
-    ? `$${(result.cost_cents / 100).toFixed(3)}`
-    : "N/A";
+  const costStr = formatCost(result.cost_cents);
 
   let text = `Transcription Complete
 ==================================================
+  Transcription ID: ${transcriptionId}
   Language: ${r.language || "auto-detected"}
   Duration: ${duration}
   Cost: ${costStr}`;
@@ -241,6 +287,19 @@ function formatDuration(seconds: number): string {
   if (h > 0) return `${h}h ${m}m ${s}s`;
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
+}
+
+/**
+ * Format cost_cents (returned by the API as actual cents with up to 4 decimals,
+ * via roundForApi) as a customer-facing dollar string. Examples from the live API:
+ *   cost_cents: 20      → $0.2000 (1 hour of audio)
+ *   cost_cents: 0.0167  → $0.0002 (3 seconds of audio)
+ *   cost_cents: null    → "N/A"
+ */
+function formatCost(costCents: number | null | undefined): string {
+  if (costCents == null) return "N/A";
+  const dollars = costCents / 100;
+  return `$${dollars.toFixed(4)}`;
 }
 
 function formatTimestamp(seconds: number): string {
