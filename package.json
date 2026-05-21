@@ -1,6 +1,6 @@
 {
   "name": "@scriptivox/mcp-server",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "MCP server for Scriptivox AI transcription — transcribe audio/video from any AI assistant. 119 languages, speaker diarization, word-level timestamps, full CRUD on transcriptions (submit, cancel, delete, list), and SRT/VTT/text export.",
   "keywords": [
     "mcp",

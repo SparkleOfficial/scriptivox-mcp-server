@@ -2,9 +2,9 @@ const SECTIONS: Record<string, string> = {
   quickstart: `Scriptivox API — Quickstart
 ==================================================
 
-1. Sign up at https://scriptivox.com → Dashboard → API
-2. Create an API key (starts with sk_live_)
-3. Add credits ($5 minimum, $0.20/hour billed per second)
+1. Sign up at https://platform.scriptivox.com
+2. Go to https://platform.scriptivox.com/keys and create an API key (starts with sk_live_)
+3. Add credits at https://platform.scriptivox.com/billing ($5 minimum, $0.20/hour billed per second)
 4. Transcribe:
 
    curl -X POST https://api.scriptivox.com/v1/transcribe \\

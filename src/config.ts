@@ -16,9 +16,9 @@ export const NO_API_KEY_MESSAGE = `No Scriptivox API key configured.
 
 To transcribe audio and video, you need a Scriptivox API key:
 
-1. Sign up at https://scriptivox.com
-2. Go to Dashboard > API and create an API key
-3. Add credits ($5 minimum — $0.20/hour of audio)
+1. Sign up at https://platform.scriptivox.com
+2. Go to https://platform.scriptivox.com/keys and create an API key
+3. Add credits at https://platform.scriptivox.com/billing ($5 minimum — $0.20/hour of audio)
 4. Set the SCRIPTIVOX_API_KEY environment variable in your MCP client config:
 
    {

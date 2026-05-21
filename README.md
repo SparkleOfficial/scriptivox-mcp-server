@@ -42,10 +42,10 @@ SCRIPTIVOX_API_KEY=sk_live_YOUR_KEY npx -y @scriptivox/mcp-server
 
 ## Getting an API Key
 
-1. Sign up at [scriptivox.com](https://scriptivox.com)
-2. Go to **Dashboard > API**
-3. Create an API key
-4. Add credits ($5 minimum — API pricing is $0.20/hour of audio)
+1. Sign up at [platform.scriptivox.com](https://platform.scriptivox.com)
+2. Go to **[Keys](https://platform.scriptivox.com/keys)** in the dashboard
+3. Create an API key (starts with `sk_live_...`)
+4. Add credits at **[Billing](https://platform.scriptivox.com/billing)** ($5 minimum — API pricing is $0.20/hour of audio)
 
 ## Tools
 
