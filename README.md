@@ -1,5 +1,7 @@
 # @scriptivox/mcp-server
 
+[![smithery badge](https://smithery.ai/badge/sparkleofficialmain/scriptivox)](https://smithery.ai/servers/sparkleofficialmain/scriptivox)
+
 MCP (Model Context Protocol) server for [Scriptivox](https://scriptivox.com) — AI-powered audio and video transcription.
 
 Turn any AI assistant into a transcription powerhouse. Transcribe audio and video from URLs or local files with 99% accuracy, speaker diarization, **119 languages**, and word-level timestamps. Plus full CRUD on transcriptions (cancel, delete, list) and caption export in SRT / WebVTT / plain text.
