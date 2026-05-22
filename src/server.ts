@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { VERSION } from "./config.js";
 
 // Tools
 import { handleGetLanguages } from "./tools/get-languages.js";
@@ -36,7 +37,7 @@ import { handleMeetingNotesPrompt } from "./prompts/meeting-notes.js";
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "scriptivox",
-    version: "1.1.0",
+    version: VERSION,
     description:
       "AI transcription for any AI assistant. Transcribe audio/video from URLs or local files with 99% accuracy, speaker diarization, 119 languages, and word-level timestamps. Full CRUD on transcriptions: submit, cancel, delete, list, and export as SRT/VTT/text.",
   });

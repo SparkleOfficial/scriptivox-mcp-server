@@ -1,4 +1,23 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
 const API_BASE_URL = "https://api.scriptivox.com/v1";
+
+// Server version, read from package.json at runtime so it can never drift from
+// what npm publishes. package.json sits one level up from this file in both the
+// source tree (src/) and the compiled output (dist/) — and inside the installed
+// npm package — so "../package.json" resolves correctly in every case.
+function readVersion(): string {
+  try {
+    const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+    return JSON.parse(readFileSync(pkgPath, "utf8")).version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
+export const VERSION = readVersion();
 
 export const CONFIG = {
   apiBaseUrl: API_BASE_URL,

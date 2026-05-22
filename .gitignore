@@ -6,3 +6,8 @@ dist/
 key.pem
 mcp-publisher.exe
 mcp-publisher.tar.gz
+
+# npm publish tokens / secrets pasted into local files
+npm granular acces token.txt
+*token*.txt
+*.token
