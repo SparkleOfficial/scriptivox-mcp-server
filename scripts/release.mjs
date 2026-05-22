@@ -156,12 +156,16 @@ async function main() {
 
     if (await ask(`Publish to MCP Registry (${serverName}@${version})?`)) {
       try {
-        const publisher = process.platform === 'win32' ? 'mcp-publisher.exe' : './mcp-publisher';
-        run(`${publisher} login http --domain ${MCP_AUTH_DOMAIN} --algorithm ${MCP_AUTH_ALGORITHM} --private-key ${mcpPrivateKeyHex()}`);
-        run(`${publisher} publish`);
+        // Absolute path — a bare "mcp-publisher.exe" isn't found by execSync's
+        // cmd.exe shell even with cwd set.
+        const publisher = join(repoRoot, process.platform === 'win32' ? 'mcp-publisher.exe' : 'mcp-publisher');
+        run(`"${publisher}" login http --domain ${MCP_AUTH_DOMAIN} --algorithm ${MCP_AUTH_ALGORITHM} --private-key ${mcpPrivateKeyHex()}`);
+        run(`"${publisher}" publish`);
         results.push(['mcp-registry', 'published']);
-      } catch (e) {
-        results.push(['mcp-registry', 'FAILED: ' + e.message]);
+      } catch {
+        // Do NOT print the error message: it echoes the login command, which
+        // contains the private key. The real error is in the live output above.
+        results.push(['mcp-registry', 'FAILED (see output above)']);
       }
     } else results.push(['mcp-registry', 'skipped']);
 
