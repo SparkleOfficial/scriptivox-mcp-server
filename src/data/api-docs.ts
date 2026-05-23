@@ -37,8 +37,16 @@ Request headers:
 
 Request body (JSON):
   url           string   (one of url/upload_id required)
-                         Public URL to audio/video. Google Drive, Dropbox,
-                         OneDrive, and direct file URLs supported.
+                         Anonymously accessible URL to audio/video. An anon
+                         HTTPS GET must return the raw file bytes — not an
+                         HTML preview, login form, or password page. Direct
+                         file URLs and presigned URLs (S3/GCS/Azure SAS)
+                         always work. Cloud share links work only when set
+                         to "Anyone with the link" without team restriction:
+                         Google Drive, Dropbox files (not /scl/fo/ folders),
+                         OneDrive /redir or onedrive.live.com. OneDrive
+                         1drv.ms/v/c/ and 1drv.ms/p/c/ shares cannot be
+                         transcribed (SharePoint Photos requires sign-in).
   upload_id     string   (one of url/upload_id required)
                          ID returned by POST /v1/upload.
   language      string   (optional, RECOMMENDED)
@@ -301,7 +309,12 @@ Synchronous errors (returned on the request itself):
   500 INTERNAL_ERROR              Server-side error — safe to retry
 
 Asynchronous errors (surface on GET /v1/transcribe/{id} after submission):
-  URL_NOT_ACCESSIBLE              URL flow — URL returned 4xx/5xx or didn't resolve
+  URL_NOT_ACCESSIBLE              URL flow — fetch failed. Covers 4xx/5xx, DNS
+                                  failure, connection refused, HTML response
+                                  instead of media (login/preview/folder/expired),
+                                  sign-in-required share (e.g. OneDrive 1drv.ms/v/c),
+                                  or 200 with empty body. The 'message' field names
+                                  the specific cause when detectable.
   DOWNLOAD_FAILED                 URL flow — download started but interrupted
   INVALID_MEDIA_FORMAT            ffprobe rejected the file, OR audio < 1 second
                                   (message names the actual measured duration)
