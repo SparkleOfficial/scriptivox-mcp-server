@@ -41,5 +41,29 @@
         }
       ]
     }
+  ],
+  "websiteUrl": "https://platform.scriptivox.com",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://platform.scriptivox.com/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Scriptivox API key. OPTIONAL: get_pricing, get_supported_languages, get_product_info and get_api_docs work without it. The transcription tools need it.",
+          "isRequired": false,
+          "isSecret": true,
+          "value": "Bearer {scriptivox_api_key}",
+          "variables": {
+            "scriptivox_api_key": {
+              "description": "API key (sk_live_...) from https://platform.scriptivox.com/keys",
+              "isRequired": false,
+              "isSecret": true,
+              "format": "string"
+            }
+          }
+        }
+      ]
+    }
   ]
 }
