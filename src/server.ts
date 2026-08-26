@@ -15,6 +15,24 @@ import { handleTranscribeCancel } from "./tools/transcribe-cancel.js";
 import { handleTranscribeDelete } from "./tools/transcribe-delete.js";
 import { handleListTranscriptions } from "./tools/list-transcriptions.js";
 import { handleExportTranscript } from "./tools/export-transcript.js";
+import {
+  loginDefinition,
+  handleLogin,
+  logoutDefinition,
+  handleLogout,
+  createAccountDefinition,
+  handleCreateAccount,
+  getAccountDefinition,
+  handleGetAccount,
+  createApiKeyDefinition,
+  handleCreateApiKey,
+  revokeApiKeyDefinition,
+  handleRevokeApiKey,
+  purchasePlanDefinition,
+  handlePurchasePlan,
+  topUpBalanceDefinition,
+  handleTopUpBalance,
+} from "./tools/account.js";
 
 // Resources
 import {
@@ -276,6 +294,87 @@ export function createServer(): McpServer {
       strip_chars: z.string().optional().describe("Characters to strip from the transcript before formatting."),
     },
     async (args) => handleExportTranscript(args)
+  );
+
+  // --- Account and commerce (OAuth user token, NOT an API key) ---
+  //
+  // These act on a PERSON's account, so an sk_live_ key cannot authorise them:
+  // it identifies an API balance, not a signed-in human. `login` runs the
+  // OAuth 2.1 browser flow once and the session is refreshed from then on.
+  //
+  // create_account needs no credential at all — it is how an agent gets a
+  // person onto the product in the first place.
+  //
+  // There is deliberately NO transcription tool in this group. See the header
+  // of ./tools/account.ts.
+
+  server.tool(
+    "login",
+    loginDefinition.description,
+    {},
+    async () => handleLogin()
+  );
+
+  server.tool(
+    "logout",
+    logoutDefinition.description,
+    {},
+    async () => handleLogout()
+  );
+
+  server.tool(
+    "create_account",
+    createAccountDefinition.description,
+    {
+      email: z.string().describe("Email address for the new account."),
+      password: z.string().describe("Password for the new account."),
+      name: z.string().optional().describe("Display name (optional)."),
+      agent_attribution: z.string().optional().describe("Identifier for the agent creating this account (optional)."),
+    },
+    async (args) => handleCreateAccount(args)
+  );
+
+  server.tool(
+    "get_account",
+    getAccountDefinition.description,
+    {},
+    async () => handleGetAccount()
+  );
+
+  server.tool(
+    "create_api_key",
+    createApiKeyDefinition.description,
+    {
+      name: z.string().describe("A label so the person can tell their keys apart."),
+    },
+    async (args) => handleCreateApiKey(args)
+  );
+
+  server.tool(
+    "revoke_api_key",
+    revokeApiKeyDefinition.description,
+    {
+      key_id: z.string().describe("Id of the key to revoke."),
+    },
+    async (args) => handleRevokeApiKey(args)
+  );
+
+  server.tool(
+    "purchase_plan",
+    purchasePlanDefinition.description,
+    {
+      plan: z.enum(["monthly", "yearly", "team"]).describe("Which plan to buy."),
+    },
+    async (args) => handlePurchasePlan(args)
+  );
+
+  server.tool(
+    "top_up_balance",
+    topUpBalanceDefinition.description,
+    {
+      amount_cents: z.number().describe("Amount to add, in US cents. Must be a positive whole number."),
+    },
+    async (args) => handleTopUpBalance(args)
   );
 
   // --- Register Resources ---

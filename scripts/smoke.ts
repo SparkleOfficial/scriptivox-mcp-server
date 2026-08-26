@@ -3,27 +3,45 @@
  * ================================================
  *
  * Invokes every tool handler directly (no MCP transport in the loop), against
- * the live prod API at api.scriptivox.com using SCRIPTIVOX_MAIN from
- * /Users/arshnoorsingh/Desktop/scriptivox-fresh/.env.local.
+ * the live prod API at api.scriptivox.com.
  *
  * Why prod: dev1 has stale data and the MCP server's prod-locked base URL
  * doesn't accept an override out of the box. Total cost burn for this run
  * is well under $0.01 (two short transcriptions @ ~30s each).
  *
+ * ── Where the key comes from ────────────────────────────────────────────
+ *
+ * SCRIPTIVOX_API_KEY (or SCRIPTIVOX_MAIN) in the environment, falling back to
+ * an .env file named by SCRIPTIVOX_ENV_FILE.
+ *
+ * This used to read one hardcoded absolute path on one contributor's laptop,
+ * which meant `npm test` — and therefore `prepublishOnly` — failed for
+ * everybody else, including CI. A publish gate that cannot run anywhere but
+ * one machine is not a gate.
+ *
  * Run:  cd mcp-server && npx tsx scripts/smoke.ts
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
-// ─── Load API key from .env.local ────────────────────────────────────────
+// ─── Resolve the API key ─────────────────────────────────────────────────
 function loadApiKey(): string {
-  const envPath = "/Users/arshnoorsingh/Desktop/scriptivox-fresh/.env.local";
-  const content = readFileSync(envPath, "utf-8");
-  for (const line of content.split("\n")) {
-    const m = line.match(/^SCRIPTIVOX_MAIN\s*=\s*(\S+)/);
-    if (m) return m[1];
+  const direct = process.env.SCRIPTIVOX_API_KEY || process.env.SCRIPTIVOX_MAIN;
+  if (direct) return direct;
+
+  const envPath = process.env.SCRIPTIVOX_ENV_FILE;
+  if (envPath && existsSync(envPath)) {
+    const content = readFileSync(envPath, "utf-8");
+    for (const line of content.split("\n")) {
+      const m = line.match(/^(?:SCRIPTIVOX_MAIN|SCRIPTIVOX_API_KEY)\s*=\s*(\S+)/);
+      if (m) return m[1].replace(/^["']|["']$/g, "");
+    }
   }
-  throw new Error("SCRIPTIVOX_MAIN not found in .env.local");
+
+  throw new Error(
+    "No API key. Set SCRIPTIVOX_API_KEY (or SCRIPTIVOX_MAIN) in the environment, " +
+      "or point SCRIPTIVOX_ENV_FILE at an .env file containing one.",
+  );
 }
 
 const API_KEY = loadApiKey();
