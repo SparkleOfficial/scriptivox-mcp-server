@@ -61,6 +61,15 @@ export const AUTH_CONFIG = {
   noBrowser: /^(1|true|yes)$/i.test(process.env.SCRIPTIVOX_NO_BROWSER || ""),
   /** How long the browser login may take before it gives up. */
   loginTimeoutMs: 300000, // 5 minutes
+  /**
+   * The project's PUBLISHABLE key, for the tools that read tables directly.
+   *
+   * Normally discovered — see publishableKeyFor() below. Set this when
+   * discovery cannot apply: alongside SCRIPTIVOX_AUTH_ISSUER, where the issuer
+   * points at a backend whose site half is not deployed, or at a branch whose
+   * key is not the one the public site advertises.
+   */
+  supabaseKeyOverride: process.env.SCRIPTIVOX_SUPABASE_KEY || "",
 };
 
 /**
@@ -73,6 +82,101 @@ export const AUTH_CONFIG = {
  */
 export function functionsBaseFrom(issuer: string): string {
   return `${new URL(issuer).origin}/functions/v1`;
+}
+
+/** PostgREST, on the same origin. */
+export function restBaseFrom(issuer: string): string {
+  return `${new URL(issuer).origin}/rest/v1`;
+}
+
+/** Object storage, on the same origin. */
+export function storageBaseFrom(issuer: string): string {
+  return `${new URL(issuer).origin}/storage/v1`;
+}
+
+/**
+ * The publishable key for the project behind `issuer`.
+ *
+ * ── Why a key has to be found at all ────────────────────────────────────────
+ *
+ * Edge functions accept `Authorization: Bearer <user token>` on its own.
+ * PostgREST does NOT — it answers 401 {"message":"No API key found in
+ * request"} and wants the project's publishable key in an `apikey` header
+ * alongside the user's token. The library, automation and meeting tools read
+ * tables, so they need one; the account tools, which only call edge functions,
+ * never did. That asymmetry is the whole reason this function exists.
+ *
+ * ── Why it is discovered rather than configured ─────────────────────────────
+ *
+ * Nothing else in this server is configured. Every URL is discovered from
+ * `siteUrl` at runtime, which is what lets ONE published npm build talk to
+ * production and to a test branch without a rebuild. A required environment
+ * variable would break `npx @scriptivox/mcp-server` for everyone who does not
+ * set it — and it would break it silently, by disabling tools rather than
+ * failing.
+ *
+ * The key is public: it is the same `sb_publishable_...` value shipped in every
+ * page of the web app's JavaScript. It grants nothing on its own — RLS is
+ * evaluated against the USER's token, which is why this process never holds a
+ * service key.
+ *
+ * ── The mismatch guard ──────────────────────────────────────────────────────
+ *
+ * The manifest describes the project the SITE talks to. When SCRIPTIVOX_AUTH_ISSUER
+ * points somewhere else, that key belongs to a different project and would fail
+ * with a confusing "Invalid API key" three calls later. The origins are
+ * compared and the mismatch is named here instead.
+ */
+let cachedKey: { issuerOrigin: string; key: string } | null = null;
+
+export async function publishableKeyFor(issuer: string): Promise<string> {
+  if (AUTH_CONFIG.supabaseKeyOverride) return AUTH_CONFIG.supabaseKeyOverride;
+
+  const issuerOrigin = new URL(issuer).origin;
+  if (cachedKey && cachedKey.issuerOrigin === issuerOrigin) return cachedKey.key;
+
+  const url = `${AUTH_CONFIG.siteUrl}/.well-known/mcp`;
+  let doc: any;
+  try {
+    const res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new Error(`${url} responded ${res.status}`);
+    doc = await res.json();
+  } catch (err) {
+    throw new Error(
+      `Could not read ${url} to find the Supabase publishable key, which reading your tags, ` +
+        `folders, workspaces, automations and meetings requires.\n\n` +
+        `Set SCRIPTIVOX_SUPABASE_KEY to skip discovery. (${err instanceof Error ? err.message : String(err)})`,
+    );
+  }
+
+  const block = doc?.["x-supabase"];
+  const key = typeof block?.publishableKey === "string" ? block.publishableKey.trim() : "";
+  if (!key) {
+    throw new Error(
+      `${url} does not publish a Supabase publishable key, so tables cannot be read. ` +
+        `Set SCRIPTIVOX_SUPABASE_KEY, or use a newer Scriptivox deployment.`,
+    );
+  }
+
+  let publishedOrigin = "";
+  try {
+    publishedOrigin = new URL(String(block.url)).origin;
+  } catch {
+    /* treated as unknown below */
+  }
+  if (publishedOrigin && publishedOrigin !== issuerOrigin) {
+    throw new Error(
+      `${AUTH_CONFIG.siteUrl} publishes a key for ${publishedOrigin}, but you are signed in against ` +
+        `${issuerOrigin}. Using it would fail with "Invalid API key".\n\n` +
+        `Set SCRIPTIVOX_SUPABASE_KEY to the publishable key for ${issuerOrigin}.`,
+    );
+  }
+
+  cachedKey = { issuerOrigin, key };
+  return key;
 }
 
 export const NO_API_KEY_MESSAGE = `No Scriptivox API key configured.

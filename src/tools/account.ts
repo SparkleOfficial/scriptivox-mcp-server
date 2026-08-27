@@ -1,12 +1,17 @@
-import { AUTH_CONFIG, functionsBaseFrom } from "../config.js";
+import { functionsBaseFrom } from "../config.js";
+import { login, logout, discoverIssuer, AUTH_FILE_PATH } from "../auth/oauth.js";
 import {
-  getAccessToken,
-  login,
-  logout,
-  discoverIssuer,
-  OAuthError,
-  AUTH_FILE_PATH,
-} from "../auth/oauth.js";
+  type ToolResult,
+  SITE,
+  PLATFORM,
+  API_BASE,
+  text,
+  json,
+  authFailure,
+  callFunction,
+  upstreamError,
+  withToken,
+} from "./user-client.js";
 
 /**
  * Account and commerce tools for the stdio server.
@@ -38,98 +43,6 @@ import {
  * Stripe's page.
  */
 
-type ToolResult = {
-  content: Array<{ type: "text"; text: string }>;
-  isError?: boolean;
-};
-
-const SITE = () => AUTH_CONFIG.siteUrl;
-const PLATFORM = "https://platform.scriptivox.com";
-const API_BASE = "https://api.scriptivox.com/v1";
-
-function text(body: string, isError = false): ToolResult {
-  return { content: [{ type: "text", text: body }], isError };
-}
-
-function json(value: unknown): ToolResult {
-  return text(JSON.stringify(value, null, 2));
-}
-
-/** An OAuth failure explains itself and says what to do; it never leaks a stack. */
-function authFailure(err: unknown): ToolResult {
-  if (err instanceof OAuthError) {
-    return text(err.hint ? `${err.message}\n\n${err.hint}` : err.message, true);
-  }
-  return text(`Sign-in failed: ${err instanceof Error ? err.message : String(err)}`, true);
-}
-
-/**
- * Call an edge function with the person's own token, so RLS applies exactly as
- * it would in their browser. Never a service key: a local process must not be
- * able to reach past the authorisation its user granted.
- */
-async function callFunction(
-  token: string,
-  issuer: string,
-  fn: string,
-  body: Record<string, unknown>,
-): Promise<{ ok: boolean; status: number; data: any }> {
-  const res = await fetch(`${functionsBaseFrom(issuer)}/${fn}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      // Functions that build redirect URLs relative to the caller (api-deposit
-      // does) need an origin, or they fall back to a default host.
-      origin: SITE(),
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(20_000),
-  });
-  let data: any = null;
-  try {
-    data = await res.json();
-  } catch {
-    data = null;
-  }
-  return { ok: res.ok, status: res.status, data };
-}
-
-function upstreamError(label: string, status: number, data: any): ToolResult {
-  const detail = (data && (data.error?.message || data.error || data.message)) || `HTTP ${status}`;
-  if (status === 401 || status === 403) {
-    return text(
-      `${label} was refused: ${detail}\n\n` +
-        "The access token is missing, expired, or was not granted for this account. " +
-        "Call `login` to authorize again.",
-      true,
-    );
-  }
-  return text(`${label} failed: ${detail}`, true);
-}
-
-/**
- * Resolve a token WITHOUT opening a browser.
- *
- * Deliberate: a tool call that silently launches a browser mid-conversation is
- * startling, and in a headless or CI context it hangs until the timeout. An
- * un-authenticated call returns a normal result telling the agent to call
- * `login`, which is something it can act on.
- */
-async function withToken(
-  run: (token: string, issuer: string) => Promise<ToolResult>,
-): Promise<ToolResult> {
-  let token: string;
-  let issuer: string;
-  try {
-    issuer = await discoverIssuer();
-    token = await getAccessToken({ interactive: false });
-  } catch (err) {
-    return authFailure(err);
-  }
-  return run(token, issuer);
-}
-
 // ─── login / logout ──────────────────────────────────────────────────────────
 
 export const loginDefinition = {
@@ -146,8 +59,14 @@ export async function handleLogin(): Promise<ToolResult> {
     await login();
     return text(
       [
-        "Signed in. The account and billing tools are now usable:",
-        "  get_account, create_api_key, revoke_api_key, purchase_plan, top_up_balance",
+        "Signed in. Every tool that acts on your account is now usable:",
+        "  account:     get_account, create_api_key, revoke_api_key",
+        "  billing:     purchase_plan, top_up_balance, get_billing_history, get_billing_portal_url",
+        "  library:     list_tags, tag_transcriptions, list_folders, move_to_folder, list_workspaces,",
+        "               generate_summary, list_shares, get_transcript_audio, chat_with_transcript",
+        "  automations: list_automations, run_automation, get_automation_run",
+        "  meetings:    start_meeting_bot, stop_meeting_bot, cancel_scheduled_bot,",
+        "               list_scheduled_meetings",
         "",
         `The session is stored at ${AUTH_FILE_PATH} and refreshes on its own.`,
         "Call `logout` to forget it.",
@@ -439,6 +358,118 @@ export async function handleTopUpBalance(args: Record<string, unknown>): Promise
         "",
         "Transcription is billed at $0.20 per hour of audio, charged only on success; failed and",
         "cancelled jobs cost nothing.",
+      ].join("\n"),
+    );
+  });
+}
+
+// ─── Billing: reading, not spending ─────────────────────────────────────────
+//
+// Safe in the way the two above are not: one reads history, the other returns a
+// link to Stripe's own portal. Neither moves a cent, and both say so, because
+// an agent that thinks a tool might charge its human will either refuse to call
+// it or call it and apologise.
+
+export const getBillingHistoryDefinition = {
+  name: "get_billing_history",
+  description:
+    "Read past invoices, add-on charges, lifetime purchases and API deposits for the signed-in " +
+    "person, newest first, with a link to each Stripe invoice. Read-only — charges nothing and " +
+    "changes nothing. Requires `login`.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      limit: { type: "number", description: "Rows per page, 1-100. Default 24." },
+      before: {
+        type: "string",
+        description: "ISO 8601 timestamp to page backwards from — the `next_cursor` from a previous call.",
+      },
+    },
+  },
+};
+
+export async function handleGetBillingHistory(args: Record<string, unknown>): Promise<ToolResult> {
+  const body: Record<string, unknown> = {};
+
+  if (args.limit !== undefined) {
+    const limit = typeof args.limit === "number" ? Math.floor(args.limit) : NaN;
+    if (!Number.isFinite(limit) || limit < 1 || limit > 100) {
+      return text("`limit` must be a whole number between 1 and 100.", true);
+    }
+    body.limit = limit;
+  }
+
+  const before = typeof args.before === "string" ? args.before.trim() : "";
+  if (before) {
+    if (Number.isNaN(Date.parse(before))) {
+      return text("`before` must be an ISO 8601 timestamp — the `next_cursor` from a previous call.", true);
+    }
+    body.before = before;
+  }
+
+  return withToken(async (token, issuer) => {
+    const { ok, status, data } = await callFunction(token, issuer, "get-billing-history", body);
+    if (!ok) return upstreamError("Reading the billing history", status, data);
+
+    const rows: any[] = Array.isArray(data?.rows) ? data.rows : [];
+    if (rows.length === 0) {
+      return text("No billing history on this account — nothing has been charged yet.");
+    }
+
+    const lines = rows.map((r) => {
+      const amount = `$${(Number(r.amount_cents ?? 0) / 100).toFixed(2)} ${String(r.currency ?? "usd").toUpperCase()}`;
+      return [
+        `${String(r.date ?? "").slice(0, 10)}  ${String(r.kind ?? "").padEnd(16)} ${amount.padStart(12)}  ${r.status ?? ""}`,
+        r.description ? `    ${r.description}` : "",
+        r.hosted_invoice_url ? `    invoice: ${r.hosted_invoice_url}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    });
+
+    if (data?.has_more && data?.next_cursor) {
+      lines.push("", `next_cursor: ${data.next_cursor}  (pass as \`before\` for the next page)`);
+    }
+    if (data?.stale) {
+      lines.push(
+        "",
+        "These rows come from a mirror of Stripe that was slightly behind when read. It refreshes " +
+          "itself on access, so calling again in a moment may show more.",
+      );
+    }
+    return text(lines.join("\n"));
+  });
+}
+
+export const getBillingPortalUrlDefinition = {
+  name: "get_billing_portal_url",
+  description:
+    "Return a link to the Stripe billing portal for the signed-in person, where they can change " +
+    "their card, download invoices, or cancel a subscription. Charges nothing and changes nothing " +
+    "on its own: it returns a link the person must open themselves. Requires `login`.",
+  inputSchema: { type: "object" as const, properties: {} },
+};
+
+export async function handleGetBillingPortalUrl(): Promise<ToolResult> {
+  return withToken(async (token, issuer) => {
+    const { ok, status, data } = await callFunction(token, issuer, "api-deposit", {
+      action: "billing_portal",
+    });
+    if (!ok) return upstreamError("Opening the billing portal", status, data);
+
+    const url = data?.url;
+    if (!url) return text("The portal session was created but no URL was returned.", true);
+
+    return text(
+      [
+        "Stripe billing portal link for this account:",
+        "",
+        url,
+        "",
+        "This CHARGES NOTHING. It is a link the person opens themselves, where they can change their",
+        "card, download invoices, or cancel a subscription. You cannot do any of that for them.",
+        "",
+        "The link is single-use and expires; generate a fresh one rather than reusing an old one.",
       ].join("\n"),
     );
   });

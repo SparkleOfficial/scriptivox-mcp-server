@@ -32,7 +32,51 @@ import {
   handlePurchasePlan,
   topUpBalanceDefinition,
   handleTopUpBalance,
+  getBillingHistoryDefinition,
+  handleGetBillingHistory,
+  getBillingPortalUrlDefinition,
+  handleGetBillingPortalUrl,
 } from "./tools/account.js";
+import {
+  searchTranscriptsDefinition,
+  handleSearchTranscripts,
+  listTagsDefinition,
+  handleListTags,
+  listFoldersDefinition,
+  handleListFolders,
+  listWorkspacesDefinition,
+  handleListWorkspaces,
+  tagTranscriptionsDefinition,
+  handleTagTranscriptions,
+  moveToFolderDefinition,
+  handleMoveToFolder,
+  generateSummaryDefinition,
+  handleGenerateSummary,
+  listSharesDefinition,
+  handleListShares,
+  getTranscriptAudioDefinition,
+  handleGetTranscriptAudio,
+  chatWithTranscriptDefinition,
+  handleChatWithTranscript,
+} from "./tools/library.js";
+import {
+  listAutomationsDefinition,
+  handleListAutomations,
+  runAutomationDefinition,
+  handleRunAutomation,
+  getAutomationRunDefinition,
+  handleGetAutomationRun,
+} from "./tools/automations.js";
+import {
+  startMeetingBotDefinition,
+  handleStartMeetingBot,
+  stopMeetingBotDefinition,
+  handleStopMeetingBot,
+  cancelScheduledBotDefinition,
+  handleCancelScheduledBot,
+  listScheduledMeetingsDefinition,
+  handleListScheduledMeetings,
+} from "./tools/meetings.js";
 
 // Resources
 import {
@@ -375,6 +419,229 @@ export function createServer(): McpServer {
       amount_cents: z.number().describe("Amount to add, in US cents. Must be a positive whole number."),
     },
     async (args) => handleTopUpBalance(args)
+  );
+
+  server.tool(
+    "get_billing_history",
+    getBillingHistoryDefinition.description,
+    {
+      limit: z.number().optional().describe("Rows per page, 1-100. Default 24."),
+      before: z
+        .string()
+        .optional()
+        .describe("ISO 8601 timestamp to page backwards from — the `next_cursor` from a previous call."),
+    },
+    async (args) => handleGetBillingHistory(args)
+  );
+
+  server.tool(
+    "get_billing_portal_url",
+    getBillingPortalUrlDefinition.description,
+    {},
+    async () => handleGetBillingPortalUrl()
+  );
+
+  // --- The library: organising transcripts that already exist ---
+  //
+  // Everything in this group acts on finished work. None of it can create
+  // transcription work — see the header of ./tools/library.ts for the boundary
+  // it sits inside and where the single exception lives.
+
+  server.tool(
+    "search_transcripts",
+    searchTranscriptsDefinition.description,
+    {
+      query: z.string().optional().describe("Match against the original filename."),
+      tag: z.string().optional().describe("Only transcripts carrying this exact tag."),
+      folder_id: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("Only transcripts in this folder, or null for those in no folder."),
+      workspace_id: z.string().optional().describe("Restrict to one workspace."),
+      status: z
+        .enum(["uploading", "pending", "processing", "completed", "failed"])
+        .optional()
+        .describe('Filter by status. Most tools here need "completed".'),
+      limit: z.number().optional().describe("Rows to return, 1-200. Default 50."),
+      offset: z.number().optional().describe("Rows to skip — pass next_offset from a previous call."),
+    },
+    async (args) => handleSearchTranscripts(args)
+  );
+
+  server.tool(
+    "list_tags",
+    listTagsDefinition.description,
+    {},
+    async () => handleListTags()
+  );
+
+  server.tool(
+    "tag_transcriptions",
+    tagTranscriptionsDefinition.description,
+    {
+      transcription_ids: z
+        .array(z.string())
+        .describe("Transcription ids to tag. At most 10 per call."),
+      tags: z
+        .array(z.string())
+        .describe("Tag names to add. Letters, digits and spaces, max 30 characters each."),
+    },
+    async (args) => handleTagTranscriptions(args)
+  );
+
+  server.tool(
+    "list_folders",
+    listFoldersDefinition.description,
+    {},
+    async () => handleListFolders()
+  );
+
+  server.tool(
+    "move_to_folder",
+    moveToFolderDefinition.description,
+    {
+      transcription_ids: z
+        .array(z.string())
+        .describe("Transcription ids to move. At most 50 per call."),
+      // Nullable, not optional: null is a real instruction ("out of any
+      // folder"), and it has to be distinguishable from the field being absent.
+      folder_id: z
+        .string()
+        .nullable()
+        .describe("Target folder id, or null to remove them from any folder."),
+    },
+    async (args) => handleMoveToFolder(args)
+  );
+
+  server.tool(
+    "list_workspaces",
+    listWorkspacesDefinition.description,
+    {},
+    async () => handleListWorkspaces()
+  );
+
+  server.tool(
+    "generate_summary",
+    generateSummaryDefinition.description,
+    {
+      transcription_id: z.string().describe("A completed transcription id."),
+      force: z.boolean().optional().describe("Replace an existing summary. Default false, which skips."),
+    },
+    async (args) => handleGenerateSummary(args)
+  );
+
+  server.tool(
+    "list_shares",
+    listSharesDefinition.description,
+    {},
+    async () => handleListShares()
+  );
+
+  server.tool(
+    "get_transcript_audio",
+    getTranscriptAudioDefinition.description,
+    {
+      transcription_id: z.string().describe("The transcription ID (UUID)."),
+    },
+    async (args) => handleGetTranscriptAudio(args)
+  );
+
+  server.tool(
+    "chat_with_transcript",
+    chatWithTranscriptDefinition.description,
+    {
+      transcription_id: z.string().describe("A completed transcription id."),
+      message: z.string().describe("The question to ask about the transcript."),
+      conversation_id: z
+        .string()
+        .optional()
+        .describe("Continue an existing thread. Omit to start a new one."),
+    },
+    async (args) => handleChatWithTranscript(args)
+  );
+
+  // --- Automations ---
+
+  server.tool(
+    "list_automations",
+    listAutomationsDefinition.description,
+    {},
+    async () => handleListAutomations()
+  );
+
+  server.tool(
+    "run_automation",
+    runAutomationDefinition.description,
+    {
+      automation_id: z.string().describe("From list_automations."),
+      transcription_id: z.string().describe("A COMPLETED transcription. Anything else is refused."),
+    },
+    async (args) => handleRunAutomation(args)
+  );
+
+  server.tool(
+    "get_automation_run",
+    getAutomationRunDefinition.description,
+    {
+      run_id: z.string().describe("The run_id returned by run_automation."),
+    },
+    async (args) => handleGetAutomationRun(args)
+  );
+
+  // --- Meeting bots ---
+  //
+  // The ONE tool here that creates new transcription work. `meeting_url` is a
+  // single string on purpose — there is no array form, so bulk recording is not
+  // expressible. See the header of ./tools/meetings.ts.
+
+  server.tool(
+    "start_meeting_bot",
+    startMeetingBotDefinition.description,
+    {
+      meeting_url: z
+        .string()
+        .describe(
+          "The meeting link to join (Zoom, Google Meet, Teams or Webex). ONE url — this tool does not take a list."
+        ),
+      title: z.string().optional().describe("Title for the resulting transcript. Optional."),
+      language: z
+        .string()
+        .optional()
+        .describe("ISO 639-1 language code for the meeting audio. Optional; auto-detected when omitted."),
+      scheduled_time: z
+        .string()
+        .optional()
+        .describe("ISO 8601 time for the bot to join. Omit to join immediately. Must be in the future."),
+    },
+    async (args) => handleStartMeetingBot(args)
+  );
+
+  server.tool(
+    "stop_meeting_bot",
+    stopMeetingBotDefinition.description,
+    {
+      transcription_id: z.string().optional().describe("The transcription the bot is recording into."),
+      job_id: z.string().optional().describe("The meeting-bot job id. Either this or transcription_id."),
+    },
+    async (args) => handleStopMeetingBot(args)
+  );
+
+  server.tool(
+    "cancel_scheduled_bot",
+    cancelScheduledBotDefinition.description,
+    {
+      transcription_id: z.string().optional().describe("A scheduled bot that already exists."),
+      dispatch_id: z.string().optional().describe("A dispatch still queued, with no transcription yet."),
+    },
+    async (args) => handleCancelScheduledBot(args)
+  );
+
+  server.tool(
+    "list_scheduled_meetings",
+    listScheduledMeetingsDefinition.description,
+    {},
+    async () => handleListScheduledMeetings()
   );
 
   // --- Register Resources ---
