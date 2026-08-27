@@ -526,7 +526,6 @@ export function createServer(): McpServer {
     generateSummaryDefinition.description,
     {
       transcription_id: z.string().describe("A completed transcription id."),
-      force: z.boolean().optional().describe("Replace an existing summary. Default false, which skips."),
     },
     async (args) => handleGenerateSummary(args)
   );

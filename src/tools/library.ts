@@ -469,13 +469,12 @@ export const generateSummaryDefinition = {
     "takeaways, topics and next steps, each with a timestamp. Costs no LLM credits. IMPORTANT " +
     "SIDE EFFECT: this also mints a share link, a publicly reachable URL that lets anyone holding " +
     "it read the transcript without signing in; the URL is returned so you can see what was " +
-    "created. Idempotent — it skips a transcript that already has a summary unless force is true. " +
-    "Requires `login`.",
+    "created. Idempotent: a transcript that already has a summary is skipped and not regenerated, " +
+    "so calling this repeatedly is free and harmless. Requires `login`.",
   inputSchema: {
     type: "object" as const,
     properties: {
       transcription_id: { type: "string", description: "A completed transcription id." },
-      force: { type: "boolean", description: "Replace an existing summary. Default false, which skips." },
     },
     required: ["transcription_id"],
   },
@@ -484,7 +483,6 @@ export const generateSummaryDefinition = {
 export async function handleGenerateSummary(args: Record<string, unknown>): Promise<ToolResult> {
   const id = str(args, "transcription_id");
   if (!id) return text("`transcription_id` is required.", true);
-  const force = args.force === true;
 
   return withToken(async (token, issuer) => {
     // userId comes from the TOKEN, never from tool input. generate-summary
@@ -500,7 +498,9 @@ export async function handleGenerateSummary(args: Record<string, unknown>): Prom
       token,
       issuer,
       "generate-summary",
-      { transcriptionId: id, userId, force },
+      // No `force`: regenerating is internal-only, because this endpoint bills
+      // nothing and has no rate limit. See generate-summary/index.ts.
+      { transcriptionId: id, userId },
       // Summarising a long transcript is an LLM round trip, not a database read.
       120_000,
     );
@@ -510,7 +510,7 @@ export async function handleGenerateSummary(args: Record<string, unknown>): Prom
     const skipped = data?.skipped === true;
 
     const lines = skipped
-      ? [`${id} already has a summary, so nothing was regenerated. Pass force: true to replace it.`]
+      ? [`${id} already has a summary, so nothing was regenerated — that is not an error.`]
       : [`A summary was generated for ${id}.`];
 
     if (shareToken) {
