@@ -63,7 +63,7 @@ export async function handleLogin(): Promise<ToolResult> {
         "  account:     get_account, create_api_key, revoke_api_key",
         "  billing:     purchase_plan, top_up_balance, get_billing_history, get_billing_portal_url",
         "  library:     search_transcripts, list_tags, tag_transcriptions, list_folders,",
-        "               move_to_folder, list_workspaces, list_shares, get_transcript_audio,",
+        "               move_to_folder, list_workspaces, get_transcript_audio,",
         "               chat_with_transcript",
         "  automations: list_automations, run_automation, get_automation_run",
         "  meetings:    start_meeting_bot, stop_meeting_bot, cancel_scheduled_bot,",

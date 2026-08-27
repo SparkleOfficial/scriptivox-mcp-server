@@ -460,52 +460,6 @@ export async function handleMoveToFolder(args: Record<string, unknown>): Promise
   });
 }
 
-// ─── Shares ──────────────────────────────────────────────────────────────────
-
-export const listSharesDefinition = {
-  name: "list_shares",
-  description:
-    "List every transcript on the signed-in person's account that has a share link, with the " +
-    "public URL of each. Anyone holding one of those URLs can read that transcript without " +
-    "signing in, so this is how you find out what is currently public. Links are minted " +
-    "automatically when a meeting is summarised. Read-only; creating and revoking one are both " +
-    "done in the web app. Requires `login`.",
-  inputSchema: { type: "object" as const, properties: {} },
-};
-
-export async function handleListShares(): Promise<ToolResult> {
-  return withToken(async (token, issuer) => {
-    const { ok, status, data } = await postgrest(
-      token,
-      issuer,
-      "/transcriptions?select=id,original_filename,share_token,share_token_created_at" +
-        "&share_token=not.is.null&order=share_token_created_at.desc&limit=200",
-    );
-    if (!ok) return upstreamError("Listing shared transcripts", status, data);
-
-    const rows: any[] = Array.isArray(data) ? data : [];
-    if (rows.length === 0) return text("No transcript on this account has a share link.");
-
-    const lines = [
-      `${rows.length} transcript${rows.length === 1 ? " has" : "s have"} a publicly reachable share link.`,
-      "Anyone holding one of these URLs can read that transcript without signing in.",
-      "",
-    ];
-    for (const row of rows) {
-      lines.push(
-        `${row.id}  ${row.original_filename ?? ""}`,
-        `  ${SITE()}/share/${row.share_token}  (created ${row.share_token_created_at ?? "unknown"})`,
-      );
-    }
-    lines.push(
-      "",
-      "Links are minted when a MEETING is summarised, which happens automatically once the meeting",
-      "ends. There is no tool here that creates or revokes one; both are done in the web app.",
-    );
-    return text(lines.join("\n"));
-  });
-}
-
 // ─── Audio ───────────────────────────────────────────────────────────────────
 
 /**

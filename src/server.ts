@@ -50,8 +50,6 @@ import {
   handleTagTranscriptions,
   moveToFolderDefinition,
   handleMoveToFolder,
-  listSharesDefinition,
-  handleListShares,
   getTranscriptAudioDefinition,
   handleGetTranscriptAudio,
   chatWithTranscriptDefinition,
@@ -517,13 +515,6 @@ export function createServer(): McpServer {
     listWorkspacesDefinition.description,
     {},
     async () => handleListWorkspaces()
-  );
-
-  server.tool(
-    "list_shares",
-    listSharesDefinition.description,
-    {},
-    async () => handleListShares()
   );
 
   server.tool(
