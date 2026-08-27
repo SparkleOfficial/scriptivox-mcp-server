@@ -50,8 +50,6 @@ import {
   handleTagTranscriptions,
   moveToFolderDefinition,
   handleMoveToFolder,
-  generateSummaryDefinition,
-  handleGenerateSummary,
   listSharesDefinition,
   handleListShares,
   getTranscriptAudioDefinition,
@@ -519,15 +517,6 @@ export function createServer(): McpServer {
     listWorkspacesDefinition.description,
     {},
     async () => handleListWorkspaces()
-  );
-
-  server.tool(
-    "generate_summary",
-    generateSummaryDefinition.description,
-    {
-      transcription_id: z.string().describe("A completed transcription id."),
-    },
-    async (args) => handleGenerateSummary(args)
   );
 
   server.tool(

@@ -54,7 +54,7 @@ export const searchTranscriptsDefinition = {
   description:
     "Find transcripts in the signed-in person's library, filtered by folder, tag, workspace, " +
     "status or filename, newest first. This is where the transcription ids that " +
-    "tag_transcriptions, move_to_folder, generate_summary, get_transcript_audio, " +
+    "tag_transcriptions, move_to_folder, get_transcript_audio, " +
     "chat_with_transcript and run_automation need come from — start here. NOT the same as " +
     "list_transcriptions, which takes an API key and lists metered API jobs instead. Read-only. " +
     "Requires `login`.",
@@ -82,7 +82,7 @@ export const searchTranscriptsDefinition = {
 /**
  * The tool everything else in this file depends on.
  *
- * tag_transcriptions, move_to_folder, generate_summary, get_transcript_audio,
+ * tag_transcriptions, move_to_folder, get_transcript_audio,
  * chat_with_transcript and run_automation all take transcription ids, and
  * without this there was no way on a user token to LEARN one.
  * `list_transcriptions` is not that tool: it reads SCRIPTIVOX_API_KEY and lists
@@ -460,101 +460,16 @@ export async function handleMoveToFolder(args: Record<string, unknown>): Promise
   });
 }
 
-// ─── Summaries ───────────────────────────────────────────────────────────────
-
-export const generateSummaryDefinition = {
-  name: "generate_summary",
-  description:
-    "Generate a structured summary of an existing completed transcript — action items, key " +
-    "takeaways, topics and next steps, each with a timestamp. Costs no LLM credits. IMPORTANT " +
-    "SIDE EFFECT: this also mints a share link, a publicly reachable URL that lets anyone holding " +
-    "it read the transcript without signing in; the URL is returned so you can see what was " +
-    "created. Idempotent: a transcript that already has a summary is skipped and not regenerated, " +
-    "so calling this repeatedly is free and harmless. Requires `login`.",
-  inputSchema: {
-    type: "object" as const,
-    properties: {
-      transcription_id: { type: "string", description: "A completed transcription id." },
-    },
-    required: ["transcription_id"],
-  },
-};
-
-export async function handleGenerateSummary(args: Record<string, unknown>): Promise<ToolResult> {
-  const id = str(args, "transcription_id");
-  if (!id) return text("`transcription_id` is required.", true);
-
-  return withToken(async (token, issuer) => {
-    // userId comes from the TOKEN, never from tool input. generate-summary
-    // re-derives it from the verified token and ignores what we send, but
-    // sending a caller-supplied id would make that check the only thing
-    // standing between an agent and someone else's transcript.
-    const userId = userIdFromToken(token);
-    if (!userId) {
-      return text("The stored access token could not be read. Call `login` to sign in again.", true);
-    }
-
-    const { ok, status, data } = await callFunction(
-      token,
-      issuer,
-      "generate-summary",
-      // No `force`: regenerating is internal-only, because this endpoint bills
-      // nothing and has no rate limit. See generate-summary/index.ts.
-      { transcriptionId: id, userId },
-      // Summarising a long transcript is an LLM round trip, not a database read.
-      120_000,
-    );
-    if (!ok) return upstreamError("Generating the summary", status, data);
-
-    const shareToken = data?.share_token;
-    const skipped = data?.skipped === true;
-
-    const lines = skipped
-      ? [`${id} already has a summary, so nothing was regenerated — that is not an error.`]
-      : [`A summary was generated for ${id}.`];
-
-    if (shareToken) {
-      lines.push("");
-      // The skip path mints NOTHING — the link was already there. Reporting
-      // "this also minted a share link" on that path would announce a side
-      // effect that did not happen, which is how an agent ends up telling its
-      // human it just published something it did not.
-      lines.push(
-        ...(skipped
-          ? [
-              "This transcript ALREADY had a publicly reachable share link, from when it was first",
-              "summarised. Nothing new was created just now. Anyone holding the URL can read the",
-              "transcript without signing in:",
-            ]
-          : [
-              "NOTE — this ALSO MINTED a share link, which is how the web app has always worked:",
-              "generating a summary creates a publicly reachable URL for the transcript. Anyone",
-              "holding it can read the transcript without signing in:",
-            ]),
-        "",
-        `  ${SITE()}/share/${shareToken}`,
-        "",
-        "Do not publish it unless the person asked you to share the transcript. list_shares shows",
-        "every transcript on the account that currently has one.",
-      );
-    }
-
-    lines.push(
-      "",
-      "The summary is stored on the transcription and is read in the web app. Generating one costs",
-      "no LLM credits.",
-    );
-    return text(lines.join("\n"));
-  });
-}
+// ─── Shares ──────────────────────────────────────────────────────────────────
 
 export const listSharesDefinition = {
   name: "list_shares",
   description:
     "List every transcript on the signed-in person's account that has a share link, with the " +
     "public URL of each. Anyone holding one of those URLs can read that transcript without " +
-    "signing in, so this is how you find out what is currently public. Read-only; revoking a link " +
-    "is done in the web app. Requires `login`.",
+    "signing in, so this is how you find out what is currently public. Links are minted " +
+    "automatically when a meeting is summarised. Read-only; creating and revoking one are both " +
+    "done in the web app. Requires `login`.",
   inputSchema: { type: "object" as const, properties: {} },
 };
 
@@ -584,8 +499,8 @@ export async function handleListShares(): Promise<ToolResult> {
     }
     lines.push(
       "",
-      "Links are minted by generate_summary — in the web app and here, summarising a transcript is",
-      "what makes it shareable. There is no tool here that revokes one; that is done in the web app.",
+      "Links are minted when a MEETING is summarised, which happens automatically once the meeting",
+      "ends. There is no tool here that creates or revokes one; both are done in the web app.",
     );
     return text(lines.join("\n"));
   });
