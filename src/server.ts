@@ -301,7 +301,7 @@ export function createServer(): McpServer {
 
   server.tool(
     "export_transcript",
-    "Export a completed Scriptivox transcript as SRT subtitles, WebVTT subtitles, or plain text. Supports segmentation knobs (max_words, max_chars, max_duration, sentence_aware, include_speakers, strip_chars). Requires the transcription to be in `completed` status. Requires a configured API key.",
+    "Export a completed Scriptivox transcript as SRT subtitles, WebVTT subtitles, or plain text. Supports segmentation knobs for srt/vtt (max_words, max_chars, max_duration, sentence_aware), plus include_speakers, strip_chars, and include_timestamps for text. Requires the transcription to be in `completed` status. Requires a configured API key.",
     {
       transcription_id: z.string().describe("Completed transcription ID (UUID)."),
       format: z.enum(["srt", "vtt", "text"]).describe("Output format."),
@@ -311,6 +311,7 @@ export function createServer(): McpServer {
       sentence_aware: z.boolean().optional().describe("Break at sentence boundaries (default true)."),
       include_speakers: z.enum(["auto", "true", "false"]).optional().describe("Whether to prefix caption lines with speaker tags. 'auto' (default), 'true' (always), 'false' (never)."),
       strip_chars: z.string().optional().describe("Characters to strip from the transcript before formatting."),
+      include_timestamps: z.boolean().optional().describe("format 'text' only: start every paragraph with its start time, e.g. '[02:14] Speaker 1: …' (default false). srt and vtt always include timestamps."),
     },
     async (args) => handleExportTranscript(args)
   );

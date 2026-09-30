@@ -129,8 +129,10 @@ Format export — append ?format=srt | vtt | text to download captions:
   GET /v1/transcribe/{id}?format=vtt   → WebVTT subtitle file
   GET /v1/transcribe/{id}?format=text  → plain text transcript
 
-Segmentation knobs (query string): max_words, max_chars, max_duration,
-sentence_aware, include_speakers, strip_chars.
+Segmentation knobs for srt/vtt (query string): max_words, max_chars,
+max_duration, sentence_aware. All formats: include_speakers, strip_chars.
+format=text only: include_timestamps=true starts every paragraph with its
+start time, e.g. "[02:14] Speaker 1: ...".
 
 Status values:
   created     — Job queued

@@ -4,7 +4,7 @@ import { ScriptivoxApiError } from "../api/client.js";
 export const exportTranscriptDefinition = {
   name: "export_transcript",
   description:
-    "Export a completed Scriptivox transcript as SRT subtitles, WebVTT subtitles, or plain text. Supports segmentation knobs (max_words, max_chars, max_duration, sentence_aware, include_speakers, strip_chars). Returns the file content as text. Requires the transcription to be in `completed` status. Requires a configured API key.",
+    "Export a completed Scriptivox transcript as SRT subtitles, WebVTT subtitles, or plain text. Supports segmentation knobs for srt/vtt (max_words, max_chars, max_duration, sentence_aware), plus include_speakers, strip_chars, and include_timestamps for text. Returns the file content as text. Requires the transcription to be in `completed` status. Requires a configured API key.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -48,6 +48,11 @@ export const exportTranscriptDefinition = {
         description:
           "Characters to strip from the transcript before formatting (e.g. punctuation cleanup).",
       },
+      include_timestamps: {
+        type: "boolean",
+        description:
+          "format 'text' only: start every paragraph with its start time, e.g. '[02:14] Speaker 1: …'. Default false. srt and vtt always include timestamps.",
+      },
     },
     required: ["transcription_id", "format"],
   },
@@ -64,6 +69,7 @@ export async function handleExportTranscript(args: {
   sentence_aware?: boolean;
   include_speakers?: "auto" | "true" | "false";
   strip_chars?: string;
+  include_timestamps?: boolean;
 }) {
   if (!hasApiKey()) {
     return {
@@ -94,6 +100,7 @@ export async function handleExportTranscript(args: {
   if (args.sentence_aware != null) params.set("sentence_aware", String(args.sentence_aware));
   if (args.include_speakers) params.set("include_speakers", args.include_speakers);
   if (args.strip_chars) params.set("strip_chars", args.strip_chars);
+  if (args.include_timestamps != null) params.set("include_timestamps", String(args.include_timestamps));
 
   const url = `${CONFIG.apiBaseUrl}/transcribe/${args.transcription_id}?${params.toString()}`;
 
