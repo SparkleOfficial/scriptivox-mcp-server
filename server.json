@@ -50,7 +50,7 @@
       "headers": [
         {
           "name": "Authorization",
-          "description": "Scriptivox API key. OPTIONAL: get_pricing, get_supported_languages, get_product_info and get_api_docs work without it. The transcription tools need it.",
+          "description": "Optional Scriptivox API key (sk_live_...). Without it the endpoint answers 401 and your MCP client signs in with OAuth 2.1 (dynamic client registration, PKCE); every tool works either way.",
           "isRequired": false,
           "isSecret": true,
           "value": "Bearer {scriptivox_api_key}",

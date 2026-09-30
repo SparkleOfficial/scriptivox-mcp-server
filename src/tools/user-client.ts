@@ -294,3 +294,49 @@ export function strList(args: Record<string, unknown>, key: string): string[] | 
 export function inList(values: string[]): string {
   return `(${values.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")})`;
 }
+
+/**
+ * Run an account tool on the HOSTED server, signed in as this person.
+ *
+ * Since 2026-09-29 Scriptivox runs its own OAuth server for MCP: the token this
+ * process gets at `login` is an opaque `svx_at_…` that only the hosted MCP
+ * server accepts — deliberately NOT a Supabase session, because a Supabase
+ * token can change the account password. So the account, library, automation
+ * and meeting tools no longer call Supabase from here; they forward the call to
+ * `${site}/mcp` with that token. The hosted server then applies everything the
+ * account owner controls — the AI-apps switch, approvals before money or key
+ * changes, the activity log, the rate limit — to this process exactly as to any
+ * other connected app. Transcription with SCRIPTIVOX_API_KEY is unchanged.
+ */
+export async function forwardToHosted(tool: string, args: Record<string, unknown>): Promise<ToolResult> {
+  return withToken(async (token) => {
+    let res: Response;
+    try {
+      res = await fetch(`${AUTH_CONFIG.siteUrl}/mcp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          "MCP-Protocol-Version": "2025-06-18",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool, arguments: args } }),
+        signal: AbortSignal.timeout(75_000),
+      });
+    } catch (err) {
+      return text(`Could not reach Scriptivox: ${err instanceof Error ? err.message : String(err)}`, true);
+    }
+    const body: any = await res.json().catch(() => null);
+    if (res.status === 401) {
+      return text(
+        `${body?.error?.message ?? "Your sign-in is no longer valid."}\n\nCall the \`login\` tool to sign in again.`,
+        true,
+      );
+    }
+    if (!res.ok) {
+      return text(body?.error?.message ?? `Scriptivox answered HTTP ${res.status}.`, true);
+    }
+    if (body?.result) return body.result as ToolResult;
+    return text(body?.error?.message ?? "Scriptivox returned no result.", true);
+  });
+}

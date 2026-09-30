@@ -6,6 +6,16 @@ MCP (Model Context Protocol) server for [Scriptivox](https://scriptivox.com) —
 
 Turn any AI assistant into a transcription powerhouse. Transcribe audio and video from URLs or local files with 99% accuracy, speaker diarization, **119 languages**, and word-level timestamps. Plus full CRUD on transcriptions (cancel, delete, list) and caption export in SRT / WebVTT / plain text.
 
+## Hosted server — no install, no key to copy
+
+Scriptivox also runs this server for you at `https://platform.scriptivox.com/mcp`. Add the URL and sign in in your browser; the connection shows up as a key on [platform.scriptivox.com/keys](https://platform.scriptivox.com/keys), where you can disconnect it.
+
+```bash
+claude mcp add --transport http scriptivox https://platform.scriptivox.com/mcp
+```
+
+In Claude (web/desktop) use Settings → Connectors → Add custom connector; in Codex, `codex mcp add scriptivox --url https://platform.scriptivox.com/mcp`. Use the local package below when you need `transcribe_upload` on local files.
+
 ## Quick Start
 
 ### Claude Desktop

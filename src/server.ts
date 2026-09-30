@@ -23,55 +23,33 @@ import {
   createAccountDefinition,
   handleCreateAccount,
   getAccountDefinition,
-  handleGetAccount,
   createApiKeyDefinition,
-  handleCreateApiKey,
   revokeApiKeyDefinition,
-  handleRevokeApiKey,
   purchasePlanDefinition,
-  handlePurchasePlan,
   topUpBalanceDefinition,
-  handleTopUpBalance,
   getBillingHistoryDefinition,
-  handleGetBillingHistory,
   getBillingPortalUrlDefinition,
-  handleGetBillingPortalUrl,
 } from "./tools/account.js";
 import {
   searchTranscriptsDefinition,
-  handleSearchTranscripts,
   listTagsDefinition,
-  handleListTags,
   listFoldersDefinition,
-  handleListFolders,
   listWorkspacesDefinition,
-  handleListWorkspaces,
   tagTranscriptionsDefinition,
-  handleTagTranscriptions,
   moveToFolderDefinition,
-  handleMoveToFolder,
   getTranscriptAudioDefinition,
-  handleGetTranscriptAudio,
   chatWithTranscriptDefinition,
-  handleChatWithTranscript,
 } from "./tools/library.js";
 import {
   listAutomationsDefinition,
-  handleListAutomations,
   runAutomationDefinition,
-  handleRunAutomation,
   getAutomationRunDefinition,
-  handleGetAutomationRun,
 } from "./tools/automations.js";
 import {
   startMeetingBotDefinition,
-  handleStartMeetingBot,
   stopMeetingBotDefinition,
-  handleStopMeetingBot,
   cancelScheduledBotDefinition,
-  handleCancelScheduledBot,
   listScheduledMeetingsDefinition,
-  handleListScheduledMeetings,
 } from "./tools/meetings.js";
 
 // Resources
@@ -89,6 +67,7 @@ import {
 } from "./resources/api-docs.js";
 
 // Prompts
+import { forwardToHosted } from "./tools/user-client.js";
 import { handleTranscribeAudioPrompt } from "./prompts/transcribe-audio.js";
 import { handleMeetingNotesPrompt } from "./prompts/meeting-notes.js";
 
@@ -378,43 +357,47 @@ export function createServer(): McpServer {
     "get_account",
     getAccountDefinition.description,
     {},
-    async () => handleGetAccount()
+    async () => forwardToHosted("get_account", {})
   );
 
   server.tool(
     "create_api_key",
     createApiKeyDefinition.description,
     {
+      approval_id: z.string().optional().describe("Only on the second call: the approval_id from the APPROVAL NEEDED reply, once the account owner approved it. Same arguments as the first call."),
       name: z.string().describe("A label so the person can tell their keys apart."),
     },
-    async (args) => handleCreateApiKey(args)
+    async (args) => forwardToHosted("create_api_key", args)
   );
 
   server.tool(
     "revoke_api_key",
     revokeApiKeyDefinition.description,
     {
+      approval_id: z.string().optional().describe("Only on the second call: the approval_id from the APPROVAL NEEDED reply, once the account owner approved it. Same arguments as the first call."),
       key_id: z.string().describe("Id of the key to revoke."),
     },
-    async (args) => handleRevokeApiKey(args)
+    async (args) => forwardToHosted("revoke_api_key", args)
   );
 
   server.tool(
     "purchase_plan",
     purchasePlanDefinition.description,
     {
+      approval_id: z.string().optional().describe("Only on the second call: the approval_id from the APPROVAL NEEDED reply, once the account owner approved it. Same arguments as the first call."),
       plan: z.enum(["monthly", "yearly", "team"]).describe("Which plan to buy."),
     },
-    async (args) => handlePurchasePlan(args)
+    async (args) => forwardToHosted("purchase_plan", args)
   );
 
   server.tool(
     "top_up_balance",
     topUpBalanceDefinition.description,
     {
+      approval_id: z.string().optional().describe("Only on the second call: the approval_id from the APPROVAL NEEDED reply, once the account owner approved it. Same arguments as the first call."),
       amount_cents: z.number().describe("Amount to add, in US cents. Must be a positive whole number."),
     },
-    async (args) => handleTopUpBalance(args)
+    async (args) => forwardToHosted("top_up_balance", args)
   );
 
   server.tool(
@@ -427,14 +410,16 @@ export function createServer(): McpServer {
         .optional()
         .describe("ISO 8601 timestamp to page backwards from — the `next_cursor` from a previous call."),
     },
-    async (args) => handleGetBillingHistory(args)
+    async (args) => forwardToHosted("get_billing_history", args)
   );
 
   server.tool(
     "get_billing_portal_url",
     getBillingPortalUrlDefinition.description,
-    {},
-    async () => handleGetBillingPortalUrl()
+    {
+      approval_id: z.string().optional().describe("Only on the second call: the approval_id from the APPROVAL NEEDED reply, once the account owner approved it. Same arguments as the first call."),
+    },
+    async () => forwardToHosted("get_billing_portal_url", {})
   );
 
   // --- The library: organising transcripts that already exist ---
@@ -462,14 +447,14 @@ export function createServer(): McpServer {
       limit: z.number().optional().describe("Rows to return, 1-200. Default 50."),
       offset: z.number().optional().describe("Rows to skip — pass next_offset from a previous call."),
     },
-    async (args) => handleSearchTranscripts(args)
+    async (args) => forwardToHosted("search_transcripts", args)
   );
 
   server.tool(
     "list_tags",
     listTagsDefinition.description,
     {},
-    async () => handleListTags()
+    async () => forwardToHosted("list_tags", {})
   );
 
   server.tool(
@@ -483,14 +468,14 @@ export function createServer(): McpServer {
         .array(z.string())
         .describe("Tag names to add. Letters, digits and spaces, max 30 characters each."),
     },
-    async (args) => handleTagTranscriptions(args)
+    async (args) => forwardToHosted("tag_transcriptions", args)
   );
 
   server.tool(
     "list_folders",
     listFoldersDefinition.description,
     {},
-    async () => handleListFolders()
+    async () => forwardToHosted("list_folders", {})
   );
 
   server.tool(
@@ -507,14 +492,14 @@ export function createServer(): McpServer {
         .nullable()
         .describe("Target folder id, or null to remove them from any folder."),
     },
-    async (args) => handleMoveToFolder(args)
+    async (args) => forwardToHosted("move_to_folder", args)
   );
 
   server.tool(
     "list_workspaces",
     listWorkspacesDefinition.description,
     {},
-    async () => handleListWorkspaces()
+    async () => forwardToHosted("list_workspaces", {})
   );
 
   server.tool(
@@ -523,7 +508,7 @@ export function createServer(): McpServer {
     {
       transcription_id: z.string().describe("The transcription ID (UUID)."),
     },
-    async (args) => handleGetTranscriptAudio(args)
+    async (args) => forwardToHosted("get_transcript_audio", args)
   );
 
   server.tool(
@@ -537,7 +522,7 @@ export function createServer(): McpServer {
         .optional()
         .describe("Continue an existing thread. Omit to start a new one."),
     },
-    async (args) => handleChatWithTranscript(args)
+    async (args) => forwardToHosted("chat_with_transcript", args)
   );
 
   // --- Automations ---
@@ -546,7 +531,7 @@ export function createServer(): McpServer {
     "list_automations",
     listAutomationsDefinition.description,
     {},
-    async () => handleListAutomations()
+    async () => forwardToHosted("list_automations", {})
   );
 
   server.tool(
@@ -556,7 +541,7 @@ export function createServer(): McpServer {
       automation_id: z.string().describe("From list_automations."),
       transcription_id: z.string().describe("A COMPLETED transcription. Anything else is refused."),
     },
-    async (args) => handleRunAutomation(args)
+    async (args) => forwardToHosted("run_automation", args)
   );
 
   server.tool(
@@ -565,7 +550,7 @@ export function createServer(): McpServer {
     {
       run_id: z.string().describe("The run_id returned by run_automation."),
     },
-    async (args) => handleGetAutomationRun(args)
+    async (args) => forwardToHosted("get_automation_run", args)
   );
 
   // --- Meeting bots ---
@@ -593,7 +578,7 @@ export function createServer(): McpServer {
         .optional()
         .describe("ISO 8601 time for the bot to join. Omit to join immediately. Must be in the future."),
     },
-    async (args) => handleStartMeetingBot(args)
+    async (args) => forwardToHosted("start_meeting_bot", args)
   );
 
   server.tool(
@@ -603,7 +588,7 @@ export function createServer(): McpServer {
       transcription_id: z.string().optional().describe("The transcription the bot is recording into."),
       job_id: z.string().optional().describe("The meeting-bot job id. Either this or transcription_id."),
     },
-    async (args) => handleStopMeetingBot(args)
+    async (args) => forwardToHosted("stop_meeting_bot", args)
   );
 
   server.tool(
@@ -613,14 +598,14 @@ export function createServer(): McpServer {
       transcription_id: z.string().optional().describe("A scheduled bot that already exists."),
       dispatch_id: z.string().optional().describe("A dispatch still queued, with no transcription yet."),
     },
-    async (args) => handleCancelScheduledBot(args)
+    async (args) => forwardToHosted("cancel_scheduled_bot", args)
   );
 
   server.tool(
     "list_scheduled_meetings",
     listScheduledMeetingsDefinition.description,
     {},
-    async () => handleListScheduledMeetings()
+    async () => forwardToHosted("list_scheduled_meetings", {})
   );
 
   // --- Register Resources ---
