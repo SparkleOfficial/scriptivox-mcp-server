@@ -77,7 +77,7 @@ SCRIPTIVOX_API_KEY=sk_live_YOUR_KEY npx -y @scriptivox/mcp-server
 | `transcribe_url` | Transcribe audio/video from a public URL (Google Drive, Dropbox, OneDrive, or direct file URLs). Supports `language`, `diarize`, `speaker_count`, `align`, `webhook_url`, `idempotency_key`, `await_completed`. |
 | `transcribe_upload` | Transcribe a LOCAL file. Drives the 3-step upload flow internally. Up to 5 GB. |
 | `transcribe_status` | Check the status of a transcription by ID. Returns the full transcript when completed. |
-| `transcribe_cancel` | Cancel an in-flight transcription. Refunds reserved balance. Idempotent. |
+| `transcribe_cancel` | Cancel a transcription before it starts transcribing. Refunds reserved balance. Idempotent. A job already transcribing finishes and is billed (409). |
 | `transcribe_delete` | Soft-delete a transcription record. Idempotent. Refuses to delete in-flight jobs. |
 | `list_transcriptions` | List recent transcriptions with `status`, `from`, `to`, `limit`, `cursor`, `order` filters. |
 | `export_transcript` | Export a completed transcript as SRT subtitles, WebVTT subtitles, or plain text. Segmentation knobs: `max_words`, `max_chars`, `max_duration`, `sentence_aware`, `include_speakers`, `strip_chars`. |

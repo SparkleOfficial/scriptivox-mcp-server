@@ -4,7 +4,7 @@ import { apiRequest, ScriptivoxApiError } from "../api/client.js";
 export const transcribeCancelDefinition = {
   name: "transcribe_cancel",
   description:
-    "Cancel an in-flight Scriptivox transcription. Refunds any reserved balance. Idempotent — calling again returns the same response. Returns 409 CONFLICT if the job is already in a terminal state (completed/failed). Requires a configured API key.",
+    "Cancel a Scriptivox transcription before it starts transcribing. Refunds any reserved balance. Idempotent — calling again returns the same response. Returns 409 CONFLICT if the job is already transcribing (it finishes and is billed) or in a terminal state (completed/failed). Requires a configured API key.",
   inputSchema: {
     type: "object" as const,
     properties: {

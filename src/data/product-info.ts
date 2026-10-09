@@ -92,7 +92,7 @@ RESTful API for programmatic transcription at scale.
     POST   /v1/upload              — Request presigned URL for direct file upload
     POST   /v1/transcribe          — Start transcription (from URL or upload_id)
     GET    /v1/transcribe/{id}     — Get status / result (supports ?format=srt|vtt|text)
-    POST   /v1/transcribe/{id}/cancel — Cancel an in-flight transcription
+    POST   /v1/transcribe/{id}/cancel — Cancel a transcription before it starts transcribing
     DELETE /v1/transcribe/{id}     — Soft-delete a transcription record
     GET    /v1/transcriptions      — List with status / from / to / limit / cursor filters
     GET    /v1/balance             — Check credit balance + estimated hours

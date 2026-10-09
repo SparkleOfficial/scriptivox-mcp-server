@@ -269,7 +269,7 @@ export function createServer(): McpServer {
 
   server.tool(
     "transcribe_cancel",
-    "Cancel an in-flight Scriptivox transcription and release any reserved balance. Idempotent. Returns 409 CONFLICT on already-terminal jobs. Requires a configured API key.",
+    "Cancel a Scriptivox transcription before it starts transcribing and release any reserved balance. Idempotent. Returns 409 CONFLICT if the job is already transcribing (it finishes and is billed) or terminal. Requires a configured API key.",
     {
       transcription_id: z.string().describe("The transcription ID to cancel (UUID)."),
     },
