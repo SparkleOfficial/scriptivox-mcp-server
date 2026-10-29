@@ -269,7 +269,9 @@ Webhook payload (POST to your URL):
 
 Signature verification:
   Each request includes 'X-Scriptivox-Signature' and 'X-Scriptivox-Timestamp'.
-  Signature = HMAC-SHA256(secret=SHA256(api_key), message="{timestamp}.{body}")
+  Signature = HMAC-SHA256(secret=webhook signing secret, message="{timestamp}.{body}")
+  The secret ("whsec_...") is per API key: API Keys page > Show webhook secret.
+  It is not the API key. Webhook URLs must be https.
   Compare in constant time. Reject if the timestamp is more than 5 minutes old.
 
 Delivery semantics:

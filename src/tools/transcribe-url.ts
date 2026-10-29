@@ -36,7 +36,7 @@ export const transcribeUrlDefinition = {
       webhook_url: {
         type: "string",
         description:
-          "Optional. HTTPS URL where Scriptivox will POST `transcription.processing` and `transcription.completed`/`transcription.failed` events. Payloads are signed with HMAC-SHA256(api_key) in the `X-Scriptivox-Signature` header. Fire-and-forget — no retries.",
+          "Optional. HTTPS URL where Scriptivox will POST `transcription.processing` and `transcription.completed`/`transcription.failed` events. Payloads are signed with HMAC-SHA256 using the key's webhook signing secret (API Keys page) in the `X-Scriptivox-Signature` header. Fire-and-forget — no retries.",
       },
       idempotency_key: {
         type: "string",
