@@ -1,3 +1,10 @@
+> [!IMPORTANT]
+> **This local package is retired (12 October 2026).** Use the hosted Scriptivox MCP server instead: add
+> `https://platform.scriptivox.com/mcp` to your AI app and sign in. It has every tool (this package lacks 23 of them),
+> nothing to install, and for files on your computer its `upload_link` tool returns a one-time upload command.
+> Setup: https://platform.scriptivox.com/docs/mcp. Clients that only run local servers can bridge with
+> `npx mcp-remote https://platform.scriptivox.com/mcp`. Existing installs keep working with an API key, but get no new tools.
+
 # @scriptivox/mcp-server
 
 [![smithery badge](https://smithery.ai/badge/sparkleofficialmain/scriptivox)](https://smithery.ai/servers/sparkleofficialmain/scriptivox)
