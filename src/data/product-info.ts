@@ -74,7 +74,9 @@ Scriptivox can join your online meetings and transcribe them automatically.
     2. The bot joins the meeting and records
     3. Get a full transcript with speaker identification when the meeting ends
 
-  Included with Pro plan (600 minutes/month).
+  Every plan includes meeting recording time each month: Free 30 minutes
+  (up to 10 minutes per meeting); Pro 10 hours, or 20 hours on yearly
+  billing (up to 2 hours per meeting).
 
 Get started: https://scriptivox.com`,
 
