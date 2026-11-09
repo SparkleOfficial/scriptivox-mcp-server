@@ -286,7 +286,17 @@ Delivery semantics:
 ==================================================
 
 All errors return:
-  { "error": { "code": "ERROR_CODE", "message": "Human-readable description" } }
+  { "error": { "code": "ERROR_CODE", "message": "Human-readable description",
+               "docs_url": "https://platform.scriptivox.com/docs/api-reference#error-codes",
+               "request_id": "req_8f3a1c2b9d4e6f70" } }
+
+'code' is stable and safe to branch on; 'message' is customer-safe and its wording
+may change. New fields may be added; treat unknown keys as ignorable.
+
+Request IDs: every response, successful or not, carries an X-Request-Id header
+(req_ + 16 hex characters); error bodies repeat it as error.request_id. Log it with
+failed calls and include it when you contact support. A refused submit (400, 402,
+429) has no transcription ID, so the request ID is the way to point us at it.
 
 Synchronous errors (returned on the request itself):
   400 INVALID_REQUEST             Missing/invalid body field
@@ -298,19 +308,27 @@ Synchronous errors (returned on the request itself):
   400 UPLOAD_EXPIRED              Upload URL past expires_in (1 hour TTL)
   401 INVALID_API_KEY             Key malformed / missing
   401 API_KEY_REVOKED             Key was revoked
-  402 ZERO_BALANCE                Account balance is $0
   402 INSUFFICIENT_BALANCE        Not enough balance for this audio length
+  402 ZERO_BALANCE                Balance is $0 or below: deposit required
+  403 FORBIDDEN                   Rejected upstream before it reached the API
   404 UPLOAD_NOT_FOUND            Upload ID doesn't exist
   404 TRANSCRIPTION_NOT_FOUND     Transcription ID doesn't exist
   404 NOT_FOUND                   Path doesn't match any endpoint
   405 METHOD_NOT_ALLOWED          Wrong HTTP method (Allow header sent)
   409 CONFLICT                    Cancel/delete not allowed in current state
   409 IDEMPOTENCY_KEY_LOCKED      Concurrent retry of the same key
+  410 ENDPOINT_REMOVED            Endpoint removed; 'message' says what to use
+                                  instead (POST /v1/accounts: sign up at
+                                  https://www.scriptivox.com/signup)
   413 PAYLOAD_TOO_LARGE           Request body > 100 KB
   415 UNSUPPORTED_MEDIA_TYPE      Content-Type wasn't application/json
   422 IDEMPOTENCY_KEY_CONFLICT    Idempotency-Key reused with a different body
-  429 RATE_LIMIT_EXCEEDED         Check Retry-After header
+  429 RATE_LIMIT_EXCEEDED         Check Retry-After header; also 25 jobs already
+                                  in progress on POST /v1/transcribe (error has
+                                  in_flight and limit, no Retry-After)
   500 INTERNAL_ERROR              Server-side error — safe to retry
+  503 MAINTENANCE                 API briefly paused; nothing was created or
+                                  charged. Retry after Retry-After seconds.
 
 Asynchronous errors (surface on GET /v1/transcribe/{id} after submission):
   URL_NOT_ACCESSIBLE              URL flow — fetch failed. Covers 4xx/5xx, DNS
@@ -320,9 +338,15 @@ Asynchronous errors (surface on GET /v1/transcribe/{id} after submission):
                                   or 200 with empty body. The 'message' field names
                                   the specific cause when detectable.
   DOWNLOAD_FAILED                 URL flow — download started but interrupted
-  INVALID_MEDIA_FORMAT            ffprobe rejected the file, OR audio < 1 second
+  INVALID_MEDIA_FORMAT            The file could not be read as audio or video,
+                                  has no audio track, OR audio < 1 second
                                   (message names the actual measured duration)
+  FILE_TOO_LARGE                  Larger than 5 GB (for a URL, known once the
+                                  download reaches the limit)
   DURATION_TOO_LONG               Audio exceeds 10 hours
+  INSUFFICIENT_BALANCE            Once measured, the job cost more than your
+                                  available balance. Nothing was charged; the
+                                  message names the amount needed.
   PROCESSING_ERROR                GPU job failed after retries
   CREATED_TIMEOUT                 Job sat in 'created' >30 min
   DOWNLOAD_TIMEOUT                Job sat in 'downloading' >15 min
@@ -330,17 +354,25 @@ Asynchronous errors (surface on GET /v1/transcribe/{id} after submission):
   BILLING_ERROR                   Charge failed AFTER processing — balance NOT
                                   debited and transcript NOT delivered. Safe retry.
   INTERNAL_ERROR                  Server-side hiccup. Safe to retry.
-  CANCELLED                       Cancelled by the customer
+  CANCELLED                       Cancelled by the customer. Not charged.
+
+Failed transcriptions are free.
 
 Rate limits (per API key, per minute):
-  POST /v1/upload                60
-  POST /v1/transcribe            60
-  GET  /v1/transcribe/{id}       200  (lenient — for polling)
-  POST /v1/transcribe/{id}/cancel 30
-  DELETE /v1/transcribe/{id}     30
-  GET  /v1/transcriptions        60
-  GET  /v1/balance               100
-  (per-IP edge limit)            300
+  POST /v1/upload                         60
+  POST /v1/transcribe                     60
+  GET  /v1/transcribe/{id}                200  (lenient — for polling)
+  POST /v1/transcribe/{id}/cancel         30
+  POST /v1/transcribe/{id}/webhook/resend 30
+  POST /v1/transcribe/{id}/feedback       10
+  POST /v1/webhooks/test                  10
+  DELETE /v1/transcribe/{id}              30
+  GET  /v1/transcriptions                 60
+  GET  /v1/balance                        100
+  GET  /v1 (per IP)                       100
+  (per-IP edge limit, all endpoints)      300
+Jobs in progress: up to 25 per account (created, downloading, pending or
+processing). Need more? Contact support@scriptivox.com.
 
 Service health: https://status.scriptivox.com`,
 };
