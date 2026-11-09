@@ -1,5 +1,4 @@
-import { functionsBaseFrom } from "../config.js";
-import { login, logout, discoverIssuer, AUTH_FILE_PATH } from "../auth/oauth.js";
+import { login, logout, AUTH_FILE_PATH } from "../auth/oauth.js";
 import {
   type ToolResult,
   SITE,
@@ -90,82 +89,6 @@ export async function handleLogout(): Promise<ToolResult> {
     return text("Signed out. The stored session was deleted; call `login` to sign in again.");
   } catch (err) {
     return authFailure(err);
-  }
-}
-
-// ─── create_account (no credential at all) ──────────────────────────────────
-
-export const createAccountDefinition = {
-  name: "create_account",
-  description:
-    "Create a Scriptivox account. No credential needed; the address must be confirmed by email " +
-    "before the account can do anything.",
-  inputSchema: {
-    type: "object" as const,
-    properties: {
-      email: { type: "string", description: "Email address for the new account." },
-      password: { type: "string", description: "Password for the new account." },
-      name: { type: "string", description: "Display name (optional)." },
-      agent_attribution: {
-        type: "string",
-        description: "Identifier for the agent creating this account (optional).",
-      },
-    },
-    required: ["email", "password"],
-  },
-};
-
-export async function handleCreateAccount(args: Record<string, unknown>): Promise<ToolResult> {
-  const email = typeof args.email === "string" ? args.email.trim() : "";
-  const password = typeof args.password === "string" ? args.password : "";
-  const name = typeof args.name === "string" ? args.name.trim() : "";
-
-  if (!email || !password) return text("`email` and `password` are both required.", true);
-
-  let issuer: string;
-  try {
-    issuer = await discoverIssuer();
-  } catch (err) {
-    return authFailure(err);
-  }
-
-  try {
-    const res = await fetch(`${functionsBaseFrom(issuer)}/agent-signup`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        password,
-        name: name || undefined,
-        agent_attribution:
-          typeof args.agent_attribution === "string" ? args.agent_attribution : undefined,
-      }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    const data: any = await res.json().catch(() => null);
-    if (!res.ok) {
-      const detail = data?.error?.message || data?.error || `HTTP ${res.status}`;
-      return text(`Account creation failed: ${detail}`, true);
-    }
-    return text(
-      [
-        `An account was requested for ${email}.`,
-        "",
-        "IMPORTANT: it is not usable yet. A confirmation email has been sent, and until that link",
-        "is followed the account can do nothing at all — no quota, no balance, no sign-in.",
-        "Tell the person to check their inbox; you cannot complete this step for them.",
-        "",
-        "Once confirmed, they can:",
-        `  - sign in at ${SITE()}/signin`,
-        "  - authorise you by calling `login`, so you can act for them",
-        `  - mint an API key for programmatic transcription (${PLATFORM}/keys)`,
-        "",
-        "The reply is identical whether or not this address was already registered, so this is not",
-        "a way to find out who has an account.",
-      ].join("\n"),
-    );
-  } catch (err) {
-    return text(`Account creation failed: ${err instanceof Error ? err.message : String(err)}`, true);
   }
 }
 

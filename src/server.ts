@@ -20,8 +20,6 @@ import {
   handleLogin,
   logoutDefinition,
   handleLogout,
-  createAccountDefinition,
-  handleCreateAccount,
   getAccountDefinition,
   createApiKeyDefinition,
   revokeApiKeyDefinition,
@@ -322,8 +320,8 @@ export function createServer(): McpServer {
   // it identifies an API balance, not a signed-in human. `login` runs the
   // OAuth 2.1 browser flow once and the session is refreshed from then on.
   //
-  // create_account needs no credential at all — it is how an agent gets a
-  // person onto the product in the first place.
+  // create_account was removed on 2026-11-09: Scriptivox accounts are made
+  // only on the website (https://www.scriptivox.com/signup).
   //
   // There is deliberately NO transcription tool in this group. See the header
   // of ./tools/account.ts.
@@ -340,18 +338,6 @@ export function createServer(): McpServer {
     logoutDefinition.description,
     {},
     async () => handleLogout()
-  );
-
-  server.tool(
-    "create_account",
-    createAccountDefinition.description,
-    {
-      email: z.string().describe("Email address for the new account."),
-      password: z.string().describe("Password for the new account."),
-      name: z.string().optional().describe("Display name (optional)."),
-      agent_attribution: z.string().optional().describe("Identifier for the agent creating this account (optional)."),
-    },
-    async (args) => handleCreateAccount(args)
   );
 
   server.tool(
