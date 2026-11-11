@@ -11,7 +11,7 @@ export const transcribeUrlDefinition = {
       url: {
         type: "string",
         description:
-          "Public URL to an audio or video file (http/https). Supports Google Drive, Dropbox, OneDrive sharing links, and direct file URLs. 25 formats supported (10 audio, 15 video).",
+          "Public URL (http/https): a TikTok, Instagram, Facebook, X or Snapchat post, a Google Drive, Dropbox or OneDrive sharing link, or a direct link to an audio or video file. A social post that is private, deleted or has no video is refused at once, with nothing charged. 25 formats supported (10 audio, 15 video).",
       },
       language: {
         type: "string",

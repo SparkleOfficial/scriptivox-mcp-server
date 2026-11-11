@@ -8,7 +8,7 @@ advanced AI models. Key capabilities:
   - Speaker diarization (identify who said what)
   - Word-level timestamps with confidence scores (on by default)
   - 25 audio/video formats: 10 audio (MP3, WAV, M4A, AAC, OGG, FLAC, WMA, AIFF, Opus, CAF) + 15 video (MP4, MOV, AVI, MKV, WebM, WMV, FLV, M4V, 3GP, MPEG, MTS, OGV, TS, VOB, F4V)
-  - Google Drive, Dropbox, and OneDrive link support
+  - Links: TikTok, Instagram, Facebook, X and Snapchat posts, Google Drive, Dropbox and OneDrive sharing links, and direct file URLs
   - Webhook notifications on completion (HMAC-signed payloads)
   - Idempotency-Key support for safe retries
   - Service status: https://status.scriptivox.com
@@ -107,7 +107,7 @@ RESTful API for programmatic transcription at scale.
     - Webhook callbacks (HMAC-signed payloads, no retries)
     - Idempotency-Key header for safe retries
     - Caption/transcript export in SRT, VTT, or plain text with segmentation knobs
-    - Google Drive, Dropbox, OneDrive sharing links + direct file URLs
+    - TikTok, Instagram, Facebook, X and Snapchat posts, Google Drive, Dropbox and OneDrive sharing links, and direct file URLs
 
   Service health: https://status.scriptivox.com
   API docs:       https://scriptivox.com/docs/api-reference

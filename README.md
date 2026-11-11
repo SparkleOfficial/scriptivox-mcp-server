@@ -81,7 +81,7 @@ SCRIPTIVOX_API_KEY=sk_live_YOUR_KEY npx -y @scriptivox/mcp-server
 
 | Tool | Description |
 |------|-------------|
-| `transcribe_url` | Transcribe audio/video from a public URL (Google Drive, Dropbox, OneDrive, or direct file URLs). Supports `language`, `diarize`, `speaker_count`, `align`, `webhook_url`, `idempotency_key`, `await_completed`. |
+| `transcribe_url` | Transcribe audio/video from a public URL (a TikTok, Instagram, Facebook, X or Snapchat post, a Google Drive, Dropbox or OneDrive sharing link, or a direct file URL). Supports `language`, `diarize`, `speaker_count`, `align`, `webhook_url`, `idempotency_key`, `await_completed`. |
 | `transcribe_upload` | Transcribe a LOCAL file. Drives the 3-step upload flow internally. Up to 5 GB. |
 | `transcribe_status` | Check the status of a transcription by ID. Returns the full transcript when completed. |
 | `transcribe_cancel` | Cancel a transcription before it starts transcribing. Refunds reserved balance. Idempotent. A job already transcribing finishes and is billed (409). |

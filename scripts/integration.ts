@@ -169,21 +169,14 @@ async function main() {
     "get_supported_languages", "get_pricing", "get_product_info", "get_api_docs",
     "check_balance", "transcribe_url", "transcribe_status", "transcribe_upload",
     "transcribe_cancel", "transcribe_delete", "list_transcriptions", "export_transcript",
-    // Legacy aliases — same handler as transcribe_url / transcribe_status, kept
-    // for backward compat with @scriptivox/mcp-server@1.0.x users.
-    "transcription_url", "transcription_status",
   ];
-  check(`tools/list returns 14 tools (got ${tools.length})`, tools.length === 14, `tools: ${[...names].join(", ")}`);
+  check(`tools/list returns tools (got ${tools.length})`, tools.length > 0, `tools: ${[...names].join(", ")}`);
   for (const t of expectedTools) {
     check(`tools/list includes '${t}'`, names.has(t), `missing from set: ${t}`);
   }
-  // Legacy aliases should be clearly marked as deprecated in their description.
-  for (const legacyName of ["transcription_url", "transcription_status"]) {
-    const tool = tools.find((t) => t.name === legacyName);
-    const desc = tool?.description || "";
-    check(`${legacyName} description marks it as DEPRECATED`,
-      desc.includes("DEPRECATED"),
-      `description: ${desc.substring(0, 100)}`);
+  // 2.0.0 removed the 1.0.x aliases and create_account: they must not come back.
+  for (const gone of ["transcription_url", "transcription_status", "create_account"]) {
+    check(`tools/list no longer has '${gone}'`, !names.has(gone), `still served: ${gone}`);
   }
 
   // 3. resources/list — exposed but optional
@@ -242,17 +235,6 @@ async function main() {
   });
   check("check_balance returns balance over the wire", getToolText(bal).includes("Balance"),
     `got: ${getToolText(bal).substring(0, 150)}`);
-
-  // 6b. Legacy alias actually works — proves the deprecation path is correct.
-  console.log("\n[ Phase 6b — Legacy alias delegates to current handler ]");
-  const legacy = await client.send("tools/call", {
-    name: "transcription_status", arguments: { transcription_id: "00000000-0000-0000-0000-000000000000" },
-  });
-  // We don't care that it 404s — that proves the request actually reached
-  // the underlying handler (which then returned TRANSCRIPTION_NOT_FOUND).
-  check("transcription_status (legacy alias) reaches handler over the wire",
-    getToolText(legacy).includes("TRANSCRIPTION_NOT_FOUND"),
-    `got: ${getToolText(legacy).substring(0, 100)}`);
 
   // 7. tool call with bad input — exercises Zod + handler error envelope
   console.log("\n[ Phase 7 — Error envelope for bad input ]");

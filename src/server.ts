@@ -157,7 +157,7 @@ export function createServer(): McpServer {
       url: z
         .string()
         .describe(
-          "Public URL to an audio or video file (http/https). Supports Google Drive, Dropbox, OneDrive sharing links, and direct file URLs."
+          "Public URL (http/https): a TikTok, Instagram, Facebook, X or Snapchat post, a Google Drive, Dropbox or OneDrive sharing link, or a direct link to an audio or video file. A social post that is private, deleted or has no video is refused at once, with nothing charged."
         ),
       language: z
         .string()
@@ -216,38 +216,8 @@ export function createServer(): McpServer {
     async (args) => handleTranscribeStatus(args)
   );
 
-  // ── Backward-compatibility aliases for @scriptivox/mcp-server@1.0.x ──
-  // v1.0.4 used the noun-first names `transcription_url` / `transcription_status`.
-  // v1.1.0 renamed them to the verb-first convention (`transcribe_url` /
-  // `transcribe_status`) to match every other tool. Keeping the old names as
-  // pure delegations so existing Claude Desktop / Cursor configs don't break.
-  // Plan: drop these aliases in 2.0.0 once the deprecation has been visible
-  // long enough that telemetry shows no one is still calling them.
-
-  server.tool(
-    "transcription_url",
-    "[DEPRECATED — use transcribe_url instead] Alias kept for backward compatibility with @scriptivox/mcp-server@1.0.x. Will be removed in 2.0.0. Identical behavior to transcribe_url.",
-    {
-      url: z.string().describe("Public URL to an audio/video file (http/https)."),
-      language: z.string().optional().describe('ISO 639-1 language code (e.g. "en"). Strongly recommended when known.'),
-      diarize: z.boolean().optional().describe("Enable speaker diarization. Default: false."),
-      speaker_count: z.number().optional().describe("Expected number of speakers (1-50). Requires diarize: true."),
-      align: z.boolean().optional().describe("Word-level timestamps. Default: true."),
-      webhook_url: z.string().optional().describe("Optional HTTPS webhook URL."),
-      idempotency_key: z.string().optional().describe("Optional Idempotency-Key header."),
-      await_completed: z.boolean().optional().describe("Default: true. When false, return id immediately without polling."),
-    },
-    async (args) => handleTranscribeUrl(args),
-  );
-
-  server.tool(
-    "transcription_status",
-    "[DEPRECATED — use transcribe_status instead] Alias kept for backward compatibility with @scriptivox/mcp-server@1.0.x. Will be removed in 2.0.0. Identical behavior to transcribe_status.",
-    {
-      transcription_id: z.string().describe("The transcription ID."),
-    },
-    async (args) => handleTranscribeStatus(args),
-  );
+  // transcription_url / transcription_status (the 1.0.x names of transcribe_url /
+  // transcribe_status, deprecated since 1.1.0) were removed in 2.0.0.
 
   server.tool(
     "transcribe_upload",
